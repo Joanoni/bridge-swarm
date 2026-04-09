@@ -599,6 +599,7 @@ const CREATE_PROJECT = {
                 );
                 const project = { id, name, path: projectPath };
                 _settings.addProject(project);
+                _broadcast('PROJECTS_UPDATED', { projects: _settings.getProjects() });
                 _log(`[Swarmito] Created project: ${name} at ${projectPath}`);
                 results.push({ id, name, path: projectPath, ok: true });
             } catch (err) {
@@ -652,6 +653,19 @@ const START_CHAT = {
         try {
             const chatId = _aiChat.createChat({ name, agents, projectId });
             _log(`[Swarmito] Started chat: ${name} (${chatId})`);
+
+            // If the new chat belongs to a project and the originating chat is global, move it
+            if (projectId && _currentChatId) {
+                const originSession = _aiChat.getChat(_currentChatId);
+                if (originSession && originSession.projectId === null) {
+                    try {
+                        _aiChat.moveChatToProject(_currentChatId, projectId);
+                        _log(`[Swarmito] Moved originating chat ${_currentChatId} to project ${projectId}`);
+                    } catch (moveErr) {
+                        _log(`[Swarmito] Could not move originating chat: ${moveErr.message}`);
+                    }
+                }
+            }
 
             // Navigate the frontend to the new chat immediately
             _broadcast('OPEN_CHAT', { chatId });

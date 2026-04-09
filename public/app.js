@@ -39,6 +39,11 @@ var newProjectName = $('new-project-name');
 var addProjectBtn = $('add-project-btn'), projectsFeedback = $('projects-feedback');
 var agentListEl = $('agent-list');
 var resetBtn = $('reset-btn'), resetFeedback = $('reset-feedback');
+// Export / Import
+var exportGlobalBtn = $('export-global-btn');
+var exportProjectSelect = $('export-project-select'), exportProjectBtn = $('export-project-btn');
+var importBtn = $('import-btn'), importFileInput = $('import-file-input');
+var exportImportFeedback = $('export-import-feedback');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 var allChats = [], activeChatId = null, allAgents = [], allProjects = [];
@@ -172,8 +177,13 @@ filesPanelInput.addEventListener('change', async function() {
 // ── Chat list ─────────────────────────────────────────────────────────────────
 function renderChatList() {
     chatList.innerHTML = '';
-    if (!allChats.length) { chatList.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:12px;text-align:center;">No chats yet.</div>'; return; }
-    allChats.forEach(function(chat) {
+    // Only show chats belonging to the currently active project context
+    var visibleChats = allChats.filter(function(c) {
+        if (activeProjectId === null) return c.projectId === null || c.projectId === undefined || c.projectId === '';
+        return c.projectId === activeProjectId;
+    });
+    if (!visibleChats.length) { chatList.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:12px;text-align:center;">No chats yet.</div>'; return; }
+    visibleChats.forEach(function(chat) {
         var item = document.createElement('div');
         item.className = 'chat-item' + (chat.id === activeChatId ? ' active' : '');
         var color = agentColor(chat.id);
@@ -617,6 +627,7 @@ async function loadSettings() {
         renderProjectsList();
         renderProjectSelector();
         renderAgentList(s.agents || []);
+        renderExportProjectSelect();
     } catch(err) { settingsFeedback.textContent = 'Failed to load: '+err.message; settingsFeedback.className = 'error'; }
 }
 
@@ -886,9 +897,15 @@ function handleServerEvent(event, payload) {
 
         case 'OPEN_CHAT':
             if (payload.chatId) {
-                // If chat already in list, open immediately; otherwise defer until CHAT_CREATED
-                var existsInList = allChats.some(function(c){ return c.id === payload.chatId; });
-                if (existsInList) {
+                var targetChat = allChats.find(function(c){ return c.id === payload.chatId; });
+                if (targetChat) {
+                    // Switch project context if needed before opening
+                    var targetProjectId = targetChat.projectId || null;
+                    if (targetProjectId !== activeProjectId) {
+                        activeProjectId = targetProjectId;
+                        projectSelectEl.value = targetProjectId || '';
+                        renderChatList();
+                    }
                     openChat(payload.chatId);
                 } else {
                     _pendingOpenChatId = payload.chatId;
@@ -901,13 +918,18 @@ function handleServerEvent(event, payload) {
             if (!allChats.some(function(c){ return c.id === payload.id; })) {
                 allChats.unshift(payload);
             }
-            // Only render in sidebar if it belongs to the currently active project context
-            if (payload.projectId === activeProjectId) {
-                renderChatList();
-            }
+            // Always re-render — renderChatList filters by activeProjectId internally
+            renderChatList();
             if (_pendingOpenChatId && _pendingOpenChatId === payload.id) {
                 var pendingId = _pendingOpenChatId;
                 _pendingOpenChatId = null;
+                // Switch project context if needed
+                var pendingProjectId = payload.projectId || null;
+                if (pendingProjectId !== activeProjectId) {
+                    activeProjectId = pendingProjectId;
+                    projectSelectEl.value = pendingProjectId || '';
+                    renderChatList();
+                }
                 openChat(pendingId);
             }
             break;
@@ -916,8 +938,94 @@ function handleServerEvent(event, payload) {
             allChats = allChats.filter(function(c){ return c.id !== payload.chatId; });
             renderChatList();
             break;
+
+        case 'PROJECTS_UPDATED':
+            allProjects = payload.projects || [];
+            renderProjectSelector();
+            renderExportProjectSelect();
+            break;
     }
 }
+
+// ── Export / Import ───────────────────────────────────────────────────────────
+
+function renderExportProjectSelect() {
+    exportProjectSelect.innerHTML = '<option value="">— Select project —</option>';
+    allProjects.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        exportProjectSelect.appendChild(opt);
+    });
+}
+
+function triggerDownload(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function() { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+}
+
+function setExportImportFeedback(msg, isError) {
+    exportImportFeedback.textContent = msg;
+    exportImportFeedback.className = isError ? 'error' : 'success';
+    if (!isError) setTimeout(function() { if (exportImportFeedback.textContent === msg) { exportImportFeedback.textContent = ''; exportImportFeedback.className = ''; } }, 4000);
+}
+
+exportGlobalBtn.addEventListener('click', async function() {
+    exportGlobalBtn.disabled = true;
+    setExportImportFeedback('Exporting…', false);
+    try {
+        var r = await fetch('/api/export');
+        if (!r.ok) { var d = await r.json(); throw new Error(d.error || 'Export failed'); }
+        var blob = await r.blob();
+        var cd = r.headers.get('Content-Disposition') || '';
+        var match = cd.match(/filename="([^"]+)"/);
+        var filename = match ? match[1] : 'bridge-global-export.zip';
+        triggerDownload(blob, filename);
+        setExportImportFeedback('Global export downloaded.', false);
+    } catch(e) { setExportImportFeedback('Error: ' + e.message, true); }
+    finally { exportGlobalBtn.disabled = false; }
+});
+
+exportProjectBtn.addEventListener('click', async function() {
+    var projectId = exportProjectSelect.value;
+    if (!projectId) { setExportImportFeedback('Select a project first.', true); return; }
+    exportProjectBtn.disabled = true;
+    setExportImportFeedback('Exporting…', false);
+    try {
+        var r = await fetch('/api/export?projectId=' + encodeURIComponent(projectId));
+        if (!r.ok) { var d = await r.json(); throw new Error(d.error || 'Export failed'); }
+        var blob = await r.blob();
+        var cd = r.headers.get('Content-Disposition') || '';
+        var match = cd.match(/filename="([^"]+)"/);
+        var filename = match ? match[1] : 'bridge-project-export.zip';
+        triggerDownload(blob, filename);
+        setExportImportFeedback('Project export downloaded.', false);
+    } catch(e) { setExportImportFeedback('Error: ' + e.message, true); }
+    finally { exportProjectBtn.disabled = false; }
+});
+
+importBtn.addEventListener('click', function() { importFileInput.click(); });
+
+importFileInput.addEventListener('change', async function() {
+    if (!importFileInput.files || !importFileInput.files.length) return;
+    var file = importFileInput.files[0];
+    importFileInput.value = '';
+    importBtn.disabled = true;
+    setExportImportFeedback('Importing…', false);
+    try {
+        var fd = new FormData();
+        fd.append('bundle', file);
+        var r = await fetch('/api/import', { method: 'POST', body: fd });
+        var d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'Import failed');
+        setExportImportFeedback('Import successful! State reloaded.', false);
+        // INIT_STATE broadcast from server will refresh UI automatically
+    } catch(e) { setExportImportFeedback('Error: ' + e.message, true); }
+    finally { importBtn.disabled = false; }
+});
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 async function startup() {

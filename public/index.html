@@ -209,6 +209,33 @@
         </div>
 
         <div class="settings-section">
+            <h3>Export / Import</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Export or import agents, teams, chats and projects as a ZIP file.</p>
+
+            <div style="margin-bottom:10px;">
+                <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Export Global (all agents, teams, chats &amp; projects)</label>
+                <button id="export-global-btn" class="btn-primary" style="width:100%;">⬇ Export Global</button>
+            </div>
+
+            <div style="margin-bottom:10px;">
+                <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Export Project</label>
+                <div style="display:flex;gap:8px;">
+                    <select id="export-project-select" style="flex:1">
+                        <option value="">— Select project —</option>
+                    </select>
+                    <button id="export-project-btn" class="btn-primary">⬇ Export</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:4px;">
+                <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Import Bundle (.zip)</label>
+                <button id="import-btn" class="btn-primary" style="width:100%;">⬆ Import ZIP</button>
+                <input type="file" id="import-file-input" accept=".zip" style="display:none" />
+            </div>
+            <div id="export-import-feedback"></div>
+        </div>
+
+        <div class="settings-section">
             <h3>Danger Zone</h3>
             <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Deletes all projects, chats, and agents (except Swarmito). This cannot be undone.</p>
             <button id="reset-btn" class="btn-danger" style="width:100%;">🗑 Reset Everything</button>

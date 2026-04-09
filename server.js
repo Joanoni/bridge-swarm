@@ -26,12 +26,13 @@ console.log(`[Server] Port: ${port}`);
 const express = require('express');
 const { WebSocketServer } = require('ws');
 
-const engine   = require('./core/engine');
-const settings = require('./core/settings');
-const aiTools  = require('./core/ai-tools');
-const aiChat   = require('./core/ai-chat');
-const aiSwarm  = require('./core/ai-swarm');
-const swarmito = require('./core/swarmito');
+const engine      = require('./core/engine');
+const settings    = require('./core/settings');
+const aiTools     = require('./core/ai-tools');
+const aiChat      = require('./core/ai-chat');
+const aiSwarm     = require('./core/ai-swarm');
+const swarmito    = require('./core/swarmito');
+const exportImport = require('./core/export-import');
 
 // ── WebSocket broadcast ───────────────────────────────────────────────────────
 
@@ -285,6 +286,45 @@ app.delete('/api/chat/:chatId/files/:filename', (req, res) => {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         res.json({ ok: true });
     } catch (err) {
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
+
+// ── Export / Import ───────────────────────────────────────────────────────────
+
+// GET /api/export          → global export ZIP
+// GET /api/export?projectId=<id> → single project ZIP
+app.get('/api/export', (req, res) => {
+    try {
+        const { projectId } = req.query;
+        if (projectId) {
+            exportImport.exportProject(appRoot, settings, projectId, res);
+        } else {
+            exportImport.exportGlobal(appRoot, settings, res);
+        }
+    } catch (err) {
+        if (!res.headersSent) {
+            res.status(500).json({ ok: false, error: err.message });
+        }
+    }
+});
+
+// POST /api/import  multipart field: "bundle" (.zip file)
+const importUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB
+});
+
+app.post('/api/import', importUpload.single('bundle'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+    try {
+        await exportImport.importBundle(
+            appRoot, settings, aiChat, aiSwarm, aiTools, swarmito, engine, broadcast, log,
+            req.file.buffer
+        );
+        res.json({ ok: true });
+    } catch (err) {
+        log(`[Server] Import failed: ${err.message}`);
         res.status(500).json({ ok: false, error: err.message });
     }
 });

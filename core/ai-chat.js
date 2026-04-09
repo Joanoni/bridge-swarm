@@ -379,6 +379,39 @@ function deleteChatFromDisk(chatId, projectId) {
     } catch { /* ignore */ }
 }
 
+function moveChatToProject(chatId, projectId) {
+    const session = chats.get(chatId);
+    if (!session) throw new Error(`Chat not found: ${chatId}`);
+    if (session.projectId !== null) throw new Error(`Chat ${chatId} is already in a project.`);
+
+    const projects = _settings.getProjects();
+    const project = projects.find(p => p.id === projectId);
+    if (!project) throw new Error(`Project not found: ${projectId}`);
+
+    const oldDir = chatDir(chatId, null);
+    const newDir = path.join(project.path, 'chats', chatId);
+
+    // Copy to new location then remove old
+    if (fs.existsSync(oldDir)) {
+        fs.mkdirSync(path.dirname(newDir), { recursive: true });
+        fs.cpSync(oldDir, newDir, { recursive: true });
+        fs.rmSync(oldDir, { recursive: true, force: true });
+    }
+
+    // Update in-memory session
+    session.projectId = projectId;
+    session.updatedAt = new Date().toISOString();
+
+    // Persist at new location
+    saveChatToDisk(session);
+
+    // Notify frontend: remove from global list, add to project list
+    _broadcast('CHAT_DELETED', { chatId });
+    _broadcast('CHAT_CREATED', session.toJSON());
+
+    _log?.(`[AI Chat] Moved chat ${chatId} to project ${projectId}`);
+}
+
 // ── send_chat_message tool ────────────────────────────────────────────────────
 
 function buildSendChatMessageTool() {
@@ -962,4 +995,5 @@ module.exports = {
     continueSwarm,
     injectAssistantMessage,
     injectAssistantMessageSilent,
+    moveChatToProject,
 };

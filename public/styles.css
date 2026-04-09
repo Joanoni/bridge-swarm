@@ -186,7 +186,7 @@ body {
 
 #project-selector select {
     width: 100%;
-    background: var(--bg-secondary);
+    background: var(--bg-elevated);
     color: var(--text-primary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
