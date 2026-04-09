@@ -835,6 +835,8 @@ async function handleCommand(command, payload) {
                 apiKey: settings.apiKey,
                 tavilyApiKey: settings.tavilyApiKey || '',
                 spendingLimit: settings.spendingLimit || 0,
+                cloudflareAccountId: settings.cloudflareAccountId || '',
+                cloudflareApiToken: settings.cloudflareApiToken || '',
                 availableProviders: providers,
                 agents,
                 projects: _settings.getProjects(),
@@ -842,7 +844,7 @@ async function handleCommand(command, payload) {
         }
 
         case 'SAVE_SETTINGS': {
-            const { provider, model, apiKey, tavilyApiKey, spendingLimit } = payload;
+            const { provider, model, apiKey, tavilyApiKey, spendingLimit, cloudflareAccountId, cloudflareApiToken } = payload;
             const current = _settings.getSettings();
             _settings.saveSettings({
                 provider: provider || current.provider,
@@ -850,6 +852,8 @@ async function handleCommand(command, payload) {
                 apiKey: typeof apiKey === 'string' ? apiKey : current.apiKey,
                 tavilyApiKey: typeof tavilyApiKey === 'string' ? tavilyApiKey : current.tavilyApiKey,
                 spendingLimit: typeof spendingLimit === 'number' ? spendingLimit : current.spendingLimit,
+                cloudflareAccountId: typeof cloudflareAccountId === 'string' ? cloudflareAccountId : current.cloudflareAccountId,
+                cloudflareApiToken: typeof cloudflareApiToken === 'string' ? cloudflareApiToken : current.cloudflareApiToken,
             });
             _log?.('[AI Chat] Settings saved.');
             return { ok: true };
