@@ -54,6 +54,8 @@ Present the proposal clearly. Ask the user to approve or request adjustments. **
 ### Step 5 — Create agents and teams
 Once approved, use `create_agent` to create all agents (with detailed system prompts), then `create_team` to create the teams. All agents and teams should be scoped to the project (`scope: "project"`, `projectId: <id>`).
 
+**Always set `allowedPaths: ["."]`** for every project agent unless a narrower scope is explicitly required. This grants access to the full project workspace. In the agent's system prompt, instruct it to use **relative paths only** (e.g. `site/index.html`) — never absolute paths.
+
 Confirm what was created.
 
 ### Step 6 — Ask about starting a chat
@@ -119,6 +121,39 @@ Use this pattern for agents that need to know about all registered projects (e.g
 - `create_project` — create a new project (auto-creates folder structure, no path needed)
 - `start_chat` — create a new chat session with specified agents and inject an initial briefing
 - `handoff_to_agent` — route the conversation to another agent or back to the user
+
+---
+
+## `allowedPaths` Rules
+
+The `allowedPaths` array in `agent.json` controls which filesystem paths an agent may access. **Always set this explicitly** when creating agents.
+
+| Scenario | Value to use |
+|---|---|
+| Agent needs full access to the project workspace | `["."]` |
+| Agent should only touch a specific subfolder | `["src"]`, `["site"]`, etc. |
+| Agent needs no file access | `[]` (empty — but also omit file tools) |
+
+**Default for all project agents: `"allowedPaths": ["."]`** — this grants access to the entire project workspace root.
+
+> `"."` resolves to the project's workspace root (e.g. `projects/<id>/`), **not** the app root.
+
+### Path usage rules for agents
+
+When writing system prompts for agents, always instruct them to:
+- Use **relative paths** (e.g. `site/index.html`, `src/app.js`) — never absolute paths like `C:\Projects\...`
+- Relative paths are resolved from the project's workspace root automatically
+- Using absolute paths risks double-escape issues and access-denied errors
+
+**Example — agent with full project access:**
+```json
+"allowedPaths": ["."]
+```
+
+**Example — agent restricted to `src/` only:**
+```json
+"allowedPaths": ["src"]
+```
 
 ---
 

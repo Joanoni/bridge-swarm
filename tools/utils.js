@@ -6,8 +6,10 @@ const path = require('path');
  * If allowedPaths is empty, all paths are allowed.
  */
 function resolveSafe(filePath, allowedPaths, workspaceRoot) {
+    // Always pass through path.resolve() to normalize separators and collapse
+    // double-escaped backslashes (e.g. C:\\\\foo) that the model sometimes produces.
     const resolved = path.isAbsolute(filePath)
-        ? filePath
+        ? path.resolve(filePath)
         : path.resolve(workspaceRoot, filePath);
 
     if (!allowedPaths || allowedPaths.length === 0) {
