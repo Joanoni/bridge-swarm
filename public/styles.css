@@ -533,6 +533,93 @@ body {
     flex-shrink: 0;
 }
 
+#input-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+#input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+#attach-btn {
+    flex-shrink: 0;
+    font-size: 16px;
+    padding: 6px 8px;
+    line-height: 1;
+}
+
+/* File chips (pending upload preview — reserved for future use) */
+#file-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.file-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-chip-del {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 11px;
+    line-height: 1;
+}
+.file-chip-del:hover { color: var(--danger); }
+
+/* Files panel in info sidebar */
+#files-panel {
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.files-panel-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+}
+.files-panel-row:last-child { border-bottom: none; }
+
+.files-panel-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+.files-panel-del {
+    flex-shrink: 0;
+    font-size: 10px;
+    padding: 2px 5px;
+}
+
 #agent-select-wrap {
     flex-shrink: 0;
 }
@@ -551,7 +638,6 @@ body {
 #agent-select:focus { outline: none; border-color: var(--accent); }
 
 #user-input {
-    flex: 1;
     background: var(--bg-input);
     border: 1px solid var(--border);
     color: var(--text-primary);
@@ -564,6 +650,7 @@ body {
     max-height: 140px;
     line-height: 1.5;
     transition: border-color 0.15s;
+    flex: 1;
 }
 #user-input:focus { outline: none; border-color: var(--accent); }
 #user-input::placeholder { color: var(--text-muted); }

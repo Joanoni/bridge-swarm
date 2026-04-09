@@ -73,8 +73,15 @@
                 <div id="agent-select-wrap" title="Active agent">
                     <select id="agent-select"></select>
                 </div>
-                <textarea id="user-input" placeholder="Message… or @agent to route" rows="1"></textarea>
-                <button id="send-btn">Send</button>
+                <div id="input-col">
+                    <div id="file-chips"></div>
+                    <div id="input-row">
+                        <button id="attach-btn" class="btn-icon" title="Attach files">📎</button>
+                        <input type="file" id="file-input" multiple style="display:none" />
+                        <textarea id="user-input" placeholder="Message… or @agent to route" rows="1"></textarea>
+                        <button id="send-btn">Send</button>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -85,6 +92,14 @@
         <div class="panel-header">Chat Info</div>
         <div id="info-content">
             <div id="info-empty" style="color:var(--text-muted);font-size:12px;">No chat selected.</div>
+        </div>
+        <div id="files-panel" style="display:none">
+            <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Files</span>
+                <label for="files-panel-input" class="btn-icon" title="Upload files" style="cursor:pointer;margin:0;">📎</label>
+                <input type="file" id="files-panel-input" multiple style="display:none" />
+            </div>
+            <div id="files-panel-list"></div>
         </div>
     </div>
 

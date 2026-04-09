@@ -16,6 +16,9 @@ var projectSelectEl = $('project-select');
 var sidebarEl = $('sidebar');
 var sidebarToggle = $('sidebar-toggle');
 var sidebarBackdrop = $('sidebar-backdrop');
+// File upload
+var attachBtn = $('attach-btn'), fileInput = $('file-input'), fileChips = $('file-chips');
+var filesPanelEl = $('files-panel'), filesPanelList = $('files-panel-list'), filesPanelInput = $('files-panel-input');
 // New chat modal
 var newChatOverlay = $('new-chat-overlay'), closeNewChat = $('close-new-chat');
 var newChatName = $('new-chat-name'), newChatProject = $('new-chat-project');
@@ -101,6 +104,70 @@ async function apiDelete(url) {
     var r = await fetch(url, { method:'DELETE' }); var d = await r.json();
     if (!d.ok) throw new Error(d.error||'Unknown error'); return d;
 }
+
+// ── Chat files ────────────────────────────────────────────────────────────────
+async function loadChatFiles(chatId) {
+    try {
+        var r = await fetch('/api/chat/' + encodeURIComponent(chatId) + '/files');
+        var d = await r.json();
+        return d.ok ? (d.files || []) : [];
+    } catch(e) { return []; }
+}
+
+async function uploadFiles(chatId, files) {
+    var fd = new FormData();
+    for (var i = 0; i < files.length; i++) fd.append('files', files[i]);
+    var r = await fetch('/api/chat/' + encodeURIComponent(chatId) + '/files', { method: 'POST', body: fd });
+    var d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'Upload failed');
+    return d.uploaded || [];
+}
+
+async function deleteChatFile(chatId, filename) {
+    await apiDelete('/api/chat/' + encodeURIComponent(chatId) + '/files/' + encodeURIComponent(filename));
+}
+
+async function renderFilesPanel(chatId) {
+    if (!chatId) { filesPanelEl.style.display = 'none'; return; }
+    filesPanelEl.style.display = '';
+    var files = await loadChatFiles(chatId);
+    filesPanelList.innerHTML = '';
+    if (!files.length) {
+        filesPanelList.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px 12px;">No files attached.</div>';
+        return;
+    }
+    files.forEach(function(f) {
+        var row = document.createElement('div'); row.className = 'files-panel-row';
+        var name = document.createElement('span'); name.className = 'files-panel-name'; name.textContent = f; name.title = f;
+        var del = document.createElement('button'); del.className = 'files-panel-del btn-icon danger'; del.textContent = '✕'; del.title = 'Remove file';
+        del.addEventListener('click', async function() {
+            try { await deleteChatFile(chatId, f); await renderFilesPanel(chatId); } catch(e) { alert('Delete failed: ' + e.message); }
+        });
+        row.appendChild(name); row.appendChild(del);
+        filesPanelList.appendChild(row);
+    });
+}
+
+// Attach button in input area
+attachBtn.addEventListener('click', function() { fileInput.click(); });
+fileInput.addEventListener('change', async function() {
+    if (!activeChatId || !fileInput.files.length) return;
+    try {
+        await uploadFiles(activeChatId, fileInput.files);
+        fileInput.value = '';
+        await renderFilesPanel(activeChatId);
+    } catch(e) { alert('Upload failed: ' + e.message); }
+});
+
+// Attach button in files panel
+filesPanelInput.addEventListener('change', async function() {
+    if (!activeChatId || !filesPanelInput.files.length) return;
+    try {
+        await uploadFiles(activeChatId, filesPanelInput.files);
+        filesPanelInput.value = '';
+        await renderFilesPanel(activeChatId);
+    } catch(e) { alert('Upload failed: ' + e.message); }
+});
 
 // ── Chat list ─────────────────────────────────────────────────────────────────
 function renderChatList() {
@@ -190,6 +257,7 @@ async function openChat(chatId) {
     });
 
     renderInfoPanel(chat);
+    renderFilesPanel(chatId);
 
     // Only reload history when switching to a different chat
     if (!alreadyOpen) {

@@ -170,6 +170,37 @@ function loadSystemPrompt(agentDir) {
         .join('\n\n');
 }
 
+// ── Chat files helpers ────────────────────────────────────────────────────────
+
+function getChatFilesDir(chatId, projectId) {
+    const chatsBase = projectId
+        ? (() => {
+            const projects = _settings.getProjects();
+            const project = projects.find(p => p.id === projectId);
+            return project ? path.join(project.path, 'chats') : path.join(_appRoot, 'chats');
+        })()
+        : path.join(_appRoot, 'chats');
+    return path.join(chatsBase, chatId, 'files');
+}
+
+function listChatFiles(chatId, projectId) {
+    const dir = getChatFilesDir(chatId, projectId);
+    if (!fs.existsSync(dir)) return [];
+    try {
+        return fs.readdirSync(dir).filter(f => {
+            try { return fs.statSync(path.join(dir, f)).isFile(); } catch { return false; }
+        });
+    } catch { return []; }
+}
+
+function buildFilesSection(chatId, projectId) {
+    const files = listChatFiles(chatId, projectId);
+    if (files.length === 0) return '';
+    const dir = getChatFilesDir(chatId, projectId);
+    const lines = files.map(f => `- ${f}`).join('\n');
+    return `## Attached Files\n\nThe following files have been attached to this chat and are available at: \`${dir}\`\n\n${lines}\n\nYou can read these files using the \`read_file\` tool with the full path above.`;
+}
+
 // ── Context prefix ────────────────────────────────────────────────────────────
 
 function buildContextPrefix(workspaceRoot) {
@@ -385,7 +416,8 @@ async function continueSwarm(chatId, tools) {
     const agentMeta = loadAgentMeta(resolvedAgentId, session.projectId);
     const agentDir = agentMeta ? agentMeta.agentDir : null;
     const agentSystemPrompt = agentDir ? loadSystemPrompt(agentDir) : '';
-    const systemPrompt = buildContextPrefix(workspaceRoot) + (agentSystemPrompt ? '\n\n' + agentSystemPrompt : '');
+    const filesSection = buildFilesSection(chatId, session.projectId);
+    const systemPrompt = buildContextPrefix(workspaceRoot) + (agentSystemPrompt ? '\n\n' + agentSystemPrompt : '') + (filesSection ? '\n\n' + filesSection : '');
 
     const costAtTurnStart = session.totalCostUsd;
 
@@ -497,7 +529,8 @@ async function processSendMessage(chatId, content, extraTools = [], pushUserToUI
     const agentMeta = loadAgentMeta(resolvedAgentId, session.projectId);
     const agentDir = agentMeta ? agentMeta.agentDir : null;
     const agentSystemPrompt = agentDir ? loadSystemPrompt(agentDir) : '';
-    const systemPrompt = buildContextPrefix(workspaceRoot) + (agentSystemPrompt ? '\n\n' + agentSystemPrompt : '');
+    const filesSection = buildFilesSection(chatId, session.projectId);
+    const systemPrompt = buildContextPrefix(workspaceRoot) + (agentSystemPrompt ? '\n\n' + agentSystemPrompt : '') + (filesSection ? '\n\n' + filesSection : '');
 
     // Build tools
     const builtTools = includeSendChatMessage ? [buildSendChatMessageTool()] : [];
@@ -856,6 +889,26 @@ async function handleCommand(command, payload) {
                 cloudflareApiToken: typeof cloudflareApiToken === 'string' ? cloudflareApiToken : current.cloudflareApiToken,
             });
             _log?.('[AI Chat] Settings saved.');
+            return { ok: true };
+        }
+
+        case 'GET_CHAT_FILES': {
+            const { chatId } = payload;
+            if (!chatId) throw new Error('chatId is required.');
+            const session = chats.get(chatId);
+            if (!session) throw new Error(`Chat not found: ${chatId}`);
+            return { files: listChatFiles(chatId, session.projectId) };
+        }
+
+        case 'DELETE_CHAT_FILE': {
+            const { chatId, filename } = payload;
+            if (!chatId || !filename) throw new Error('chatId and filename are required.');
+            const session = chats.get(chatId);
+            if (!session) throw new Error(`Chat not found: ${chatId}`);
+            const dir = getChatFilesDir(chatId, session.projectId);
+            const safe = filename.replace(/[^a-zA-Z0-9._\-]/g, '_');
+            const filePath = path.join(dir, safe);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
             return { ok: true };
         }
 
