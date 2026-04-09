@@ -832,13 +832,16 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
 }
 .toggle-btn:hover { color: var(--text-primary); }
 
-#settings-feedback, #new-chat-feedback, #projects-feedback {
+#settings-feedback, #new-chat-feedback, #projects-feedback,
+#tavily-feedback, #cloudflare-feedback {
     margin-top: 8px;
     font-size: 12px;
     min-height: 18px;
 }
-#settings-feedback.success, #new-chat-feedback.success { color: var(--success); }
-#settings-feedback.error, #new-chat-feedback.error, #projects-feedback.error { color: var(--danger); }
+#settings-feedback.success, #new-chat-feedback.success,
+#tavily-feedback.success, #cloudflare-feedback.success { color: var(--success); }
+#settings-feedback.error, #new-chat-feedback.error, #projects-feedback.error,
+#tavily-feedback.error, #cloudflare-feedback.error { color: var(--danger); }
 
 /* Agent checkboxes in new chat modal */
 .agent-checkbox-item {

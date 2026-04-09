@@ -138,13 +138,6 @@
                 </div>
             </div>
             <div class="field">
-                <label for="tavily-key-input">Tavily API Key <span style="font-weight:normal;color:var(--text-muted)">(for web_search tool)</span></label>
-                <div class="api-key-wrapper">
-                    <input type="password" id="tavily-key-input" placeholder="Enter your Tavily API key…" autocomplete="off" />
-                    <button class="toggle-btn" id="toggle-tavily-key">Show</button>
-                </div>
-            </div>
-            <div class="field">
                 <label for="spending-limit-input">Spending limit per approval ($) <span style="font-weight:normal;color:var(--text-muted)">(0 = disabled)</span></label>
                 <input type="number" id="spending-limit-input" min="0" step="0.01" placeholder="0.00" />
             </div>
@@ -153,7 +146,20 @@
         </div>
 
         <div class="settings-section">
-            <h3>Cloudflare</h3>
+            <h3>Tavily <span style="font-weight:normal;font-size:12px;color:var(--text-muted)">(web_search tool)</span></h3>
+            <div class="field">
+                <label for="tavily-key-input">API Key</label>
+                <div class="api-key-wrapper">
+                    <input type="password" id="tavily-key-input" placeholder="Enter your Tavily API key…" autocomplete="off" />
+                    <button class="toggle-btn" id="toggle-tavily-key">Show</button>
+                </div>
+            </div>
+            <button id="save-tavily-btn" class="btn-primary">Save Tavily Key</button>
+            <div id="tavily-feedback"></div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Cloudflare <span style="font-weight:normal;font-size:12px;color:var(--text-muted)">(deploy_cloudflare tool)</span></h3>
             <div class="field">
                 <label for="cf-account-id-input">Account ID</label>
                 <div class="api-key-wrapper">
@@ -168,6 +174,8 @@
                     <button class="toggle-btn" id="toggle-cf-api-token">Show</button>
                 </div>
             </div>
+            <button id="save-cloudflare-btn" class="btn-primary">Save Cloudflare Keys</button>
+            <div id="cloudflare-feedback"></div>
         </div>
 
         <div class="settings-section">

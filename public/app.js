@@ -30,6 +30,8 @@ var cfAccountIdInput = $('cf-account-id-input'), toggleCfAccountIdBtn = $('toggl
 var cfApiTokenInput = $('cf-api-token-input'), toggleCfApiTokenBtn = $('toggle-cf-api-token');
 var toggleKeyBtn = $('toggle-key'), saveSettingsBtn = $('save-settings-btn');
 var settingsFeedback = $('settings-feedback'), projectsList = $('projects-list');
+var saveTavilyBtn = $('save-tavily-btn'), tavilyFeedback = $('tavily-feedback');
+var saveCloudflareBtn = $('save-cloudflare-btn'), cloudflareFeedback = $('cloudflare-feedback');
 var newProjectName = $('new-project-name');
 var addProjectBtn = $('add-project-btn'), projectsFeedback = $('projects-feedback');
 var agentListEl = $('agent-list');
@@ -553,11 +555,31 @@ async function loadSettings() {
 saveSettingsBtn.addEventListener('click', async function() {
     saveSettingsBtn.disabled = true; settingsFeedback.textContent = ''; settingsFeedback.className = '';
     try {
-        await apiChat('SAVE_SETTINGS', { provider: providerSelect.value, model: modelSelect.value, apiKey: apiKeyInput.value, tavilyApiKey: tavilyKeyInput.value, spendingLimit: parseFloat(spendingLimitInput.value)||0, cloudflareAccountId: cfAccountIdInput.value, cloudflareApiToken: cfApiTokenInput.value });
+        await apiChat('SAVE_SETTINGS', { provider: providerSelect.value, model: modelSelect.value, apiKey: apiKeyInput.value, spendingLimit: parseFloat(spendingLimitInput.value)||0 });
         settingsFeedback.textContent = 'Settings saved.'; settingsFeedback.className = 'success';
         setTimeout(function(){ if(settingsFeedback.textContent==='Settings saved.'){ settingsFeedback.textContent=''; settingsFeedback.className=''; } }, 3000);
     } catch(err) { settingsFeedback.textContent = 'Error: '+err.message; settingsFeedback.className = 'error'; }
     finally { saveSettingsBtn.disabled = false; }
+});
+
+saveTavilyBtn.addEventListener('click', async function() {
+    saveTavilyBtn.disabled = true; tavilyFeedback.textContent = ''; tavilyFeedback.className = '';
+    try {
+        await apiChat('SAVE_SETTINGS', { tavilyApiKey: tavilyKeyInput.value });
+        tavilyFeedback.textContent = 'Tavily key saved.'; tavilyFeedback.className = 'success';
+        setTimeout(function(){ if(tavilyFeedback.textContent==='Tavily key saved.'){ tavilyFeedback.textContent=''; tavilyFeedback.className=''; } }, 3000);
+    } catch(err) { tavilyFeedback.textContent = 'Error: '+err.message; tavilyFeedback.className = 'error'; }
+    finally { saveTavilyBtn.disabled = false; }
+});
+
+saveCloudflareBtn.addEventListener('click', async function() {
+    saveCloudflareBtn.disabled = true; cloudflareFeedback.textContent = ''; cloudflareFeedback.className = '';
+    try {
+        await apiChat('SAVE_SETTINGS', { cloudflareAccountId: cfAccountIdInput.value, cloudflareApiToken: cfApiTokenInput.value });
+        cloudflareFeedback.textContent = 'Cloudflare keys saved.'; cloudflareFeedback.className = 'success';
+        setTimeout(function(){ if(cloudflareFeedback.textContent==='Cloudflare keys saved.'){ cloudflareFeedback.textContent=''; cloudflareFeedback.className=''; } }, 3000);
+    } catch(err) { cloudflareFeedback.textContent = 'Error: '+err.message; cloudflareFeedback.className = 'error'; }
+    finally { saveCloudflareBtn.disabled = false; }
 });
 
 function renderProjectsList() {
