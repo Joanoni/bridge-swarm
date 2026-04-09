@@ -214,6 +214,7 @@ function buildAgentTools(agentId, chatId) {
 
     // Swarmito gets its own special tools
     if (agentId === 'swarmito') {
+        _swarmito.setCurrentChatId(chatId);
         const swaarmitoTools = _swarmito.getSwaarmitoTools();
         const allTools = [...fileTools, ...swaarmitoTools, buildHandoffTool(chatId)];
         _log(`[AI Swarm] [${chatId.slice(0,8)}] buildAgentTools: agent="${agentId}" tools=[${allTools.map(t => t.definition.name).join(', ')}]`);

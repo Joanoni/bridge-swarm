@@ -1,4 +1,5 @@
 const readFile           = require('../tools/read-file/tool');
+const readBinaryFile     = require('../tools/read-binary-file/tool');
 const writeFile          = require('../tools/write-file/tool');
 const editFile           = require('../tools/edit-file/tool');
 const listDirectory      = require('../tools/list-directory/tool');
@@ -10,6 +11,7 @@ const deployCloudflare   = require('../tools/deploy-cloudflare/tool');
 
 const ALL_TOOLS = {
     read_file:            readFile,
+    read_binary_file:     readBinaryFile,
     write_file:           writeFile,
     edit_file:            editFile,
     list_directory:       listDirectory,

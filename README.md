@@ -53,7 +53,8 @@ Agents only receive the tools listed in their `agent.json` `tools` array. File-s
 
 | Tool name | Description |
 |---|---|
-| `read_file` | Read a file from the filesystem |
+| `read_file` | Read a text file from the filesystem |
+| `read_binary_file` | Read a binary file (PNG, JPEG, GIF, WEBP) and return it as base64 so the model can visualize it |
 | `write_file` | Write (create or overwrite) a file |
 | `edit_file` | Apply targeted search/replace edits to an existing file |
 | `list_directory` | List files and directories |
@@ -154,6 +155,7 @@ bridge-swarm/
 │
 ├── tools/                  # Agent tool implementations
 │   ├── read-file/
+│   ├── read-binary-file/
 │   ├── write-file/
 │   ├── edit-file/
 │   ├── list-directory/

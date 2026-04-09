@@ -122,6 +122,23 @@ Use this pattern for agents that need to know about all registered projects (e.g
 - `start_chat` — create a new chat session with specified agents and inject an initial briefing
 - `handoff_to_agent` — route the conversation to another agent or back to the user
 
+### Automatic `projectId` inference
+
+When you are operating inside a **project chat**, the `projectId` is **automatically inferred** from the current chat context. You do **not** need to provide `projectId` explicitly for operations targeting the current project.
+
+- `scope: "project"` without `projectId` → uses the current chat's project automatically
+- Only provide `projectId` explicitly when targeting a **different** project than the current one
+
+**Example — creating an agent in the current project (no projectId needed):**
+```json
+{ "agentId": "developer", "name": "Developer", "scope": "project" }
+```
+
+**Example — creating an agent in a different project (explicit projectId required):**
+```json
+{ "agentId": "developer", "name": "Developer", "scope": "project", "projectId": "<other-project-id>" }
+```
+
 ---
 
 ## `allowedPaths` Rules
@@ -164,11 +181,12 @@ When creating agents with `create_agent`, use the `tools` array to grant them ac
 | Tool name | Description | When to use |
 |---|---|---|
 | `read_file` | Reads text content of one or more files (absolute or relative paths) | Any agent that needs to read source files, configs, or context |
+| `read_binary_file` | Reads binary image files (PNG, JPEG, GIF, WEBP) and returns them as base64 so the model can visualize them | Agents that need to inspect or analyze images |
 | `write_file` | Writes (or overwrites) text content to one or more files; auto-creates directories | Agents that produce output files (code, HTML, CSS, JSON, etc.) |
 | `edit_file` | Edits files using search/replace operations (count: 1=first, N=first N, -1=all) | Agents that need to make targeted changes to existing files |
 | `list_directory` | Lists files and subdirectories in a given directory | Agents that need to explore the project structure |
 | `run_terminal_command` | Executes shell commands sequentially in the workspace root (30s timeout, PowerShell on Windows) | Agents that need to run builds, installs, tests, or scripts |
-| `deploy_cloudflare` | Deploys a static site directory to Cloudflare Pages via PowerShell/wrangler. Returns the stable deployment URL (e.g. `https://my-project.pages.dev`). | Agents that need to publish static sites to Cloudflare Pages |
+| `deploy_cloudflare` | Deploys a static site directory to Cloudflare Pages using the wrangler CLI. Requires `project_name` (Cloudflare Pages slug, created automatically if it doesn't exist) and `directory` (path to the static files). Returns the stable deployment URL (e.g. `https://my-project.pages.dev`). Requires Cloudflare Account ID and API Token configured in Settings. | Agents that need to publish static sites to Cloudflare Pages |
 
 **Example — a frontend developer agent that can read, write, edit files and run commands:**
 ```json
@@ -181,6 +199,30 @@ When creating agents with `create_agent`, use the `tools` array to grant them ac
 ```
 
 **Note:** Agents that don't need file access should have an empty `tools` array: `"tools": []`
+
+---
+
+## Project Types
+
+When a user asks to create a project, use the project type to determine which agents, teams, and tools to set up. Below are the supported project types:
+
+### Type: `site` — Static Website
+
+A project focused on building and deploying a static website (HTML, CSS, JS). No backend required.
+
+**Recommended agents:**
+
+| Agent | Role | Tools |
+|---|---|---|
+| `developer` | Builds and edits the site files | `read_file`, `write_file`, `edit_file`, `list_directory`, `run_terminal_command` |
+| `deployer` | Deploys the site to Cloudflare Pages | `read_file`, `list_directory`, `deploy_cloudflare` |
+
+**Recommended team:** one team containing both agents (e.g. `site-team`).
+
+**Notes:**
+- The `developer` agent should use `allowedPaths: ["."]` and work with relative paths under the project workspace.
+- The `deployer` agent should use `allowedPaths: ["."]` and call `deploy_cloudflare` with `directory` pointing to the output folder (e.g. `site/` or `.`).
+- Always instruct the `deployer` to use a `project_name` derived from the project name (lowercase, hyphenated slug).
 
 ---
 

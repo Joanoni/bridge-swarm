@@ -84,6 +84,34 @@ async function sendMessage(apiKey, modelId, messages, systemPrompt, tools, onPro
         ? tools.map(t => toAnthropicTool(t.definition))
         : undefined;
 
+    // Build tool_result content: if execResult contains image results, return an array of
+    // Anthropic image blocks; otherwise return a plain JSON string.
+    const buildToolResultContent = (execResult) => {
+        if (execResult && Array.isArray(execResult.results)) {
+            const imageBlocks = [];
+            const textParts = [];
+            for (const r of execResult.results) {
+                if (r.ok && r.type === 'image') {
+                    imageBlocks.push({
+                        type: 'image',
+                        source: { type: 'base64', media_type: r.media_type, data: r.data },
+                    });
+                } else {
+                    textParts.push(JSON.stringify(r));
+                }
+            }
+            if (imageBlocks.length > 0) {
+                const blocks = [];
+                if (textParts.length > 0) {
+                    blocks.push({ type: 'text', text: textParts.join('\n') });
+                }
+                blocks.push(...imageBlocks);
+                return blocks;
+            }
+        }
+        return JSON.stringify(execResult ?? null);
+    };
+
     // Strip any extra fields — Anthropic only accepts { role, content } with clean content blocks
     const sanitizeContentBlock = (block) => {
         if (block.type === 'tool_use') {
@@ -93,8 +121,10 @@ async function sendMessage(apiKey, modelId, messages, systemPrompt, tools, onPro
         }
         if (block.type === 'tool_result') {
             const { _meta, ...rest } = block;
-            // content must be a string for Anthropic
-            if (typeof rest.content !== 'string') rest.content = JSON.stringify(rest.content);
+            // content may be a string or an array of image/text blocks — pass arrays through as-is
+            if (typeof rest.content !== 'string' && !Array.isArray(rest.content)) {
+                rest.content = JSON.stringify(rest.content);
+            }
             return rest;
         }
         return block;
@@ -204,9 +234,9 @@ async function sendMessage(apiKey, modelId, messages, systemPrompt, tools, onPro
                         if (typeof onToolCall === 'function') await Promise.resolve(onToolCall(block.name, block.input));
                         const execResult = await Promise.resolve(tool.execute(block.input));
                         if (execResult && execResult.displayText) displayText = execResult.displayText;
-                        resultContent = JSON.stringify(execResult ?? null);
+                        resultContent = buildToolResultContent(execResult);
                         const ms = Date.now() - toolStart;
-                        console.log(`[Engine] ${agentTag}  tool_result: ${block.name} → ok=${execResult?.ok ?? true} ms=${ms} | ${truncate(resultContent)}`);
+                        console.log(`[Engine] ${agentTag}  tool_result: ${block.name} → ok=${execResult?.ok ?? true} ms=${ms} | ${truncate(typeof resultContent === 'string' ? resultContent : JSON.stringify(resultContent))}`);
                         if (typeof onToolResult === 'function') await Promise.resolve(onToolResult(block.name, execResult, ms));
                     } catch (err) {
                         resultContent = JSON.stringify({ error: err.message });
@@ -248,9 +278,9 @@ async function sendMessage(apiKey, modelId, messages, systemPrompt, tools, onPro
                 if (typeof onToolCall === 'function') await Promise.resolve(onToolCall(block.name, block.input));
                 const execResult = await Promise.resolve(tool.execute(block.input));
                 if (execResult && execResult.displayText) displayText = execResult.displayText;
-                resultContent = JSON.stringify(execResult ?? null);
+                resultContent = buildToolResultContent(execResult);
                 const ms = Date.now() - toolStart;
-                console.log(`[Engine] ${agentTag}  tool_result: ${block.name} → ok=${execResult?.ok ?? true} ms=${ms} | ${truncate(resultContent)}`);
+                console.log(`[Engine] ${agentTag}  tool_result: ${block.name} → ok=${execResult?.ok ?? true} ms=${ms} | ${truncate(typeof resultContent === 'string' ? resultContent : JSON.stringify(resultContent))}`);
                 if (typeof onToolResult === 'function') await Promise.resolve(onToolResult(block.name, execResult, ms));
             } catch (err) {
                 resultContent = JSON.stringify({ error: err.message });

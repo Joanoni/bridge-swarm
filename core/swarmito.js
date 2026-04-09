@@ -7,6 +7,17 @@ let _settings;
 let _aiChat;
 let _broadcast;
 let _log;
+let _currentChatId = null;
+
+function setCurrentChatId(chatId) {
+    _currentChatId = chatId;
+}
+
+function getCurrentProjectId() {
+    if (!_currentChatId || !_aiChat) return null;
+    const session = _aiChat.getChat(_currentChatId);
+    return session ? session.projectId : null;
+}
 
 function uid() {
     return crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
@@ -94,7 +105,8 @@ const CREATE_AGENT = {
     execute: async ({ agents, message }) => {
         const results = [];
         for (const agent of agents) {
-            const { agentId, name, description = '', systemPrompt = '', tools = [], allowedPaths = [], systemPromptFiles, scope, projectId } = agent;
+            const { agentId, name, description = '', systemPrompt = '', tools = [], allowedPaths = [], systemPromptFiles, scope } = agent;
+            const projectId = agent.projectId || (scope === 'project' ? getCurrentProjectId() : null);
             try {
                 let agentDir;
                 if (scope === 'global') {
@@ -155,7 +167,8 @@ const UPDATE_AGENT = {
     execute: async ({ agents }) => {
         const results = [];
         for (const agent of agents) {
-            const { agentId, scope, projectId, systemPrompt, ...metaUpdates } = agent;
+            const { agentId, scope, systemPrompt, ...metaUpdates } = agent;
+            const projectId = agent.projectId || (scope === 'project' ? getCurrentProjectId() : null);
             try {
                 let agentDir;
                 if (scope === 'global') {
@@ -213,7 +226,9 @@ const DELETE_AGENT = {
     },
     execute: async ({ agents }) => {
         const results = [];
-        for (const { agentId, scope, projectId } of agents) {
+        for (const agentEntry of agents) {
+            const { agentId, scope } = agentEntry;
+            const projectId = agentEntry.projectId || (scope === 'project' ? getCurrentProjectId() : null);
             try {
                 let agentDir;
                 if (scope === 'global') {
@@ -267,7 +282,10 @@ const COPY_AGENT = {
     },
     execute: async ({ copies }) => {
         const results = [];
-        for (const { agentId, fromScope, fromProjectId, toScope, toProjectId, newAgentId } of copies) {
+        for (const copy of copies) {
+            const { agentId, fromScope, toScope, newAgentId } = copy;
+            const fromProjectId = copy.fromProjectId || (fromScope === 'project' ? getCurrentProjectId() : null);
+            const toProjectId = copy.toProjectId || (toScope === 'project' ? getCurrentProjectId() : null);
             try {
                 let fromDir, toDir;
                 if (fromScope === 'global') {
@@ -335,7 +353,9 @@ const CREATE_TEAM = {
     },
     execute: async ({ teams }) => {
         const results = [];
-        for (const { teamId, name, description = '', agents = [], scope, projectId } of teams) {
+        for (const teamEntry of teams) {
+            const { teamId, name, description = '', agents = [], scope } = teamEntry;
+            const projectId = teamEntry.projectId || (scope === 'project' ? getCurrentProjectId() : null);
             try {
                 let teamDir;
                 if (scope === 'global') {
@@ -390,7 +410,9 @@ const UPDATE_TEAM = {
     },
     execute: async ({ teams }) => {
         const results = [];
-        for (const { teamId, scope, projectId, ...updates } of teams) {
+        for (const teamEntry of teams) {
+            const { teamId, scope, ...updates } = teamEntry;
+            const projectId = teamEntry.projectId || (scope === 'project' ? getCurrentProjectId() : null);
             try {
                 let teamDir;
                 if (scope === 'global') {
@@ -444,7 +466,9 @@ const DELETE_TEAM = {
     },
     execute: async ({ teams }) => {
         const results = [];
-        for (const { teamId, scope, projectId } of teams) {
+        for (const teamEntry of teams) {
+            const { teamId, scope } = teamEntry;
+            const projectId = teamEntry.projectId || (scope === 'project' ? getCurrentProjectId() : null);
             try {
                 let teamDir;
                 if (scope === 'global') {
@@ -498,7 +522,10 @@ const COPY_TEAM = {
     },
     execute: async ({ copies }) => {
         const results = [];
-        for (const { teamId, fromScope, fromProjectId, toScope, toProjectId, newTeamId } of copies) {
+        for (const copy of copies) {
+            const { teamId, fromScope, toScope, newTeamId } = copy;
+            const fromProjectId = copy.fromProjectId || (fromScope === 'project' ? getCurrentProjectId() : null);
+            const toProjectId = copy.toProjectId || (toScope === 'project' ? getCurrentProjectId() : null);
             try {
                 let fromDir, toDir;
                 if (fromScope === 'global') {
@@ -714,4 +741,4 @@ function init({ appRoot, settings, aiChat, broadcast, log }) {
     _log('[Swarmito] Initialized.');
 }
 
-module.exports = { init, getSwaarmitoTools, getSwarmitoPaths };
+module.exports = { init, getSwaarmitoTools, getSwarmitoPaths, setCurrentChatId };
