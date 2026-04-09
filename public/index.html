@@ -153,6 +153,24 @@
         </div>
 
         <div class="settings-section">
+            <h3>Cloudflare</h3>
+            <div class="field">
+                <label for="cf-account-id-input">Account ID</label>
+                <div class="api-key-wrapper">
+                    <input type="password" id="cf-account-id-input" placeholder="Enter your Cloudflare Account ID…" autocomplete="off" />
+                    <button class="toggle-btn" id="toggle-cf-account-id">Show</button>
+                </div>
+            </div>
+            <div class="field">
+                <label for="cf-api-token-input">API Token</label>
+                <div class="api-key-wrapper">
+                    <input type="password" id="cf-api-token-input" placeholder="Enter your Cloudflare API Token…" autocomplete="off" />
+                    <button class="toggle-btn" id="toggle-cf-api-token">Show</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
             <h3>Projects</h3>
             <div id="projects-list"></div>
             <div style="margin-top:10px;display:flex;gap:8px;">

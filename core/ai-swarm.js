@@ -207,6 +207,8 @@ function buildAgentTools(agentId, chatId) {
             allowedPaths,
             workspaceRoot,
             tavilyApiKey: currentSettings.tavilyApiKey || '',
+            cloudflareAccountId: currentSettings.cloudflareAccountId || '',
+            cloudflareApiToken: currentSettings.cloudflareApiToken || '',
         });
     }
 

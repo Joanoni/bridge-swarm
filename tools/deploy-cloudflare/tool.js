@@ -38,8 +38,10 @@ function runCommand(cmd, args, env) {
     });
 }
 
-async function deployLinux({ project_name, directory }) {
+async function deployLinux({ project_name, directory }, agentContext) {
     const env = { ...process.env };
+    if (agentContext && agentContext.cloudflareAccountId) env.CLOUDFLARE_ACCOUNT_ID = agentContext.cloudflareAccountId;
+    if (agentContext && agentContext.cloudflareApiToken)  env.CLOUDFLARE_API_TOKEN  = agentContext.cloudflareApiToken;
 
     // Step 1: ensure project exists (ignore errors — project may already exist)
     await runCommand('npx', [
@@ -79,7 +81,7 @@ async function deployWindows({ project_name, directory }) {
     });
 }
 
-async function execute({ project_name, directory, message }) {
+async function execute({ project_name, directory, message }, agentContext) {
     let result;
 
     const timer_promise = new Promise((resolve) =>
@@ -88,7 +90,7 @@ async function execute({ project_name, directory, message }) {
 
     const deploy_promise = process.platform === 'win32'
         ? deployWindows({ project_name, directory })
-        : deployLinux({ project_name, directory });
+        : deployLinux({ project_name, directory }, agentContext);
 
     result = await Promise.race([deploy_promise, timer_promise]);
 

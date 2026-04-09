@@ -26,6 +26,8 @@ var settingsOverlay = $('settings-overlay'), closeSettings = $('close-settings')
 var providerSelect = $('provider-select'), modelSelect = $('model-select');
 var apiKeyInput = $('api-key-input'), spendingLimitInput = $('spending-limit-input');
 var tavilyKeyInput = $('tavily-key-input'), toggleTavilyKeyBtn = $('toggle-tavily-key');
+var cfAccountIdInput = $('cf-account-id-input'), toggleCfAccountIdBtn = $('toggle-cf-account-id');
+var cfApiTokenInput = $('cf-api-token-input'), toggleCfApiTokenBtn = $('toggle-cf-api-token');
 var toggleKeyBtn = $('toggle-key'), saveSettingsBtn = $('save-settings-btn');
 var settingsFeedback = $('settings-feedback'), projectsList = $('projects-list');
 var newProjectName = $('new-project-name');
@@ -501,6 +503,16 @@ toggleKeyBtn.addEventListener('click', function() {
     apiKeyInput.type = isPass ? 'text' : 'password';
     toggleKeyBtn.textContent = isPass ? 'Hide' : 'Show';
 });
+toggleCfAccountIdBtn.addEventListener('click', function() {
+    var isPass = cfAccountIdInput.type === 'password';
+    cfAccountIdInput.type = isPass ? 'text' : 'password';
+    toggleCfAccountIdBtn.textContent = isPass ? 'Hide' : 'Show';
+});
+toggleCfApiTokenBtn.addEventListener('click', function() {
+    var isPass = cfApiTokenInput.type === 'password';
+    cfApiTokenInput.type = isPass ? 'text' : 'password';
+    toggleCfApiTokenBtn.textContent = isPass ? 'Hide' : 'Show';
+});
 
 providerSelect.addEventListener('change', function(){ populateModels(providerSelect.value, null); });
 
@@ -529,6 +541,8 @@ async function loadSettings() {
         apiKeyInput.value = s.apiKey || '';
         tavilyKeyInput.value = s.tavilyApiKey || '';
         spendingLimitInput.value = s.spendingLimit || 0;
+        cfAccountIdInput.value = s.cloudflareAccountId || '';
+        cfApiTokenInput.value = s.cloudflareApiToken || '';
         allProjects = s.projects || [];
         renderProjectsList();
         renderProjectSelector();
@@ -539,7 +553,7 @@ async function loadSettings() {
 saveSettingsBtn.addEventListener('click', async function() {
     saveSettingsBtn.disabled = true; settingsFeedback.textContent = ''; settingsFeedback.className = '';
     try {
-        await apiChat('SAVE_SETTINGS', { provider: providerSelect.value, model: modelSelect.value, apiKey: apiKeyInput.value, tavilyApiKey: tavilyKeyInput.value, spendingLimit: parseFloat(spendingLimitInput.value)||0 });
+        await apiChat('SAVE_SETTINGS', { provider: providerSelect.value, model: modelSelect.value, apiKey: apiKeyInput.value, tavilyApiKey: tavilyKeyInput.value, spendingLimit: parseFloat(spendingLimitInput.value)||0, cloudflareAccountId: cfAccountIdInput.value, cloudflareApiToken: cfApiTokenInput.value });
         settingsFeedback.textContent = 'Settings saved.'; settingsFeedback.className = 'success';
         setTimeout(function(){ if(settingsFeedback.textContent==='Settings saved.'){ settingsFeedback.textContent=''; settingsFeedback.className=''; } }, 3000);
     } catch(err) { settingsFeedback.textContent = 'Error: '+err.message; settingsFeedback.className = 'error'; }

@@ -7,6 +7,8 @@ const DEFAULT_SETTINGS = {
     apiKey: '',
     tavilyApiKey: '',
     spendingLimit: 0,
+    cloudflareAccountId: '',
+    cloudflareApiToken: '',
 };
 
 let appRoot;
