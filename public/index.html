@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bridge Swarm</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+    <!-- ── Left sidebar: chat list ────────────────────────────────────────── -->
+    <div id="sidebar">
+        <div id="sidebar-header">
+            <span class="logo">⬡ Bridge Swarm</span>
+            <span id="conn-status" title="WebSocket connection"></span>
+        </div>
+
+        <div id="sidebar-actions">
+            <button id="new-chat-btn" class="btn-primary">+ New Chat</button>
+            <button id="settings-btn" class="btn-icon" title="Settings">⚙</button>
+        </div>
+
+        <div id="project-selector">
+            <select id="project-select">
+                <option value="">🌐 Global</option>
+            </select>
+        </div>
+
+        <div id="chat-list">
+            <!-- Chat items injected here -->
+        </div>
+
+        <div id="sidebar-footer">
+            <span id="global-cost" title="Total session cost">$0.0000</span>
+        </div>
+    </div>
+
+    <!-- ── Center: chat area ──────────────────────────────────────────────── -->
+    <div id="chat-area">
+
+        <!-- Empty state -->
+        <div id="empty-state">
+            <div class="empty-icon">⬡</div>
+            <div class="empty-title">Bridge Swarm</div>
+            <div class="empty-sub">Select a chat or start a new one</div>
+        </div>
+
+        <!-- Active chat -->
+        <div id="active-chat" style="display:none">
+
+            <div id="chat-topbar">
+                <div id="chat-topbar-info">
+                    <span id="chat-title">Chat</span>
+                    <span id="chat-agents-badge"></span>
+                </div>
+                <div id="chat-topbar-actions">
+                    <span id="chat-cost" title="Chat cost">$0.0000</span>
+                    <button class="btn-icon" id="clear-btn" title="Clear history">🗑</button>
+                    <button class="btn-icon danger" id="delete-chat-btn" title="Delete chat">✕</button>
+                </div>
+            </div>
+
+            <div id="messages"></div>
+
+            <div id="spending-banner">
+                <span id="spending-banner-text">Spending limit reached.</span>
+                <button id="continue-btn">Continue</button>
+            </div>
+
+            <div id="input-area">
+                <div id="agent-select-wrap" title="Active agent">
+                    <select id="agent-select"></select>
+                </div>
+                <textarea id="user-input" placeholder="Message… or @agent to route" rows="1"></textarea>
+                <button id="send-btn">Send</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Right sidebar: chat info ───────────────────────────────────────── -->
+    <div id="info-panel">
+        <div class="panel-header">Chat Info</div>
+        <div id="info-content">
+            <div id="info-empty" style="color:var(--text-muted);font-size:12px;">No chat selected.</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── New Chat modal ──────────────────────────────────────────────────────── -->
+<div id="new-chat-overlay" class="modal-overlay">
+    <div class="modal">
+        <h2>New Chat <button class="modal-close" id="close-new-chat">✕</button></h2>
+        <div class="field">
+            <label for="new-chat-name">Chat name</label>
+            <input type="text" id="new-chat-name" placeholder="e.g. Build landing page" />
+        </div>
+        <div class="field">
+            <label for="new-chat-project">Project (optional)</label>
+            <select id="new-chat-project">
+                <option value="">— No project —</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Agents</label>
+            <div id="new-chat-agents-list"></div>
+        </div>
+        <button id="create-chat-btn" class="btn-primary" style="width:100%;margin-top:8px;">Create Chat</button>
+        <div id="new-chat-feedback"></div>
+    </div>
+</div>
+
+<!-- ── Settings modal ──────────────────────────────────────────────────────── -->
+<div id="settings-overlay" class="modal-overlay">
+    <div class="modal">
+        <h2>Settings <button class="modal-close" id="close-settings">✕</button></h2>
+
+        <div class="settings-section">
+            <h3>Provider</h3>
+            <div class="field">
+                <label for="provider-select">Provider</label>
+                <select id="provider-select"></select>
+            </div>
+            <div class="field">
+                <label for="model-select">Model</label>
+                <select id="model-select"></select>
+            </div>
+            <div class="field">
+                <label for="api-key-input">API Key</label>
+                <div class="api-key-wrapper">
+                    <input type="password" id="api-key-input" placeholder="Enter your API key…" autocomplete="off" />
+                    <button class="toggle-btn" id="toggle-key">Show</button>
+                </div>
+            </div>
+            <div class="field">
+                <label for="tavily-key-input">Tavily API Key <span style="font-weight:normal;color:var(--text-muted)">(for web_search tool)</span></label>
+                <div class="api-key-wrapper">
+                    <input type="password" id="tavily-key-input" placeholder="Enter your Tavily API key…" autocomplete="off" />
+                    <button class="toggle-btn" id="toggle-tavily-key">Show</button>
+                </div>
+            </div>
+            <div class="field">
+                <label for="spending-limit-input">Spending limit per approval ($) <span style="font-weight:normal;color:var(--text-muted)">(0 = disabled)</span></label>
+                <input type="number" id="spending-limit-input" min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <button id="save-settings-btn" class="btn-primary">Save Settings</button>
+            <div id="settings-feedback"></div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Projects</h3>
+            <div id="projects-list"></div>
+            <div style="margin-top:10px;display:flex;gap:8px;">
+                <input type="text" id="new-project-name" placeholder="Project name" style="flex:1" />
+                <button id="add-project-btn" class="btn-primary">Add</button>
+            </div>
+            <div id="projects-feedback"></div>
+        </div>
+
+        <div class="settings-section">
+            <h3>Global Agents</h3>
+            <ul id="agent-list"></ul>
+        </div>
+
+        <div class="settings-section">
+            <h3>Danger Zone</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Deletes all projects, chats, and agents (except Swarmito). This cannot be undone.</p>
+            <button id="reset-btn" class="btn-danger" style="width:100%;">🗑 Reset Everything</button>
+            <div id="reset-feedback"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Autocomplete dropdown -->
+<div id="autocomplete"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

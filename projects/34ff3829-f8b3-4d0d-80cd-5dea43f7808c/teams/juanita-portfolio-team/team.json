@@ -1,0 +1,9 @@
+{
+    "name": "Juanita Portfolio Team",
+    "description": "Time completo para criar o site de portfólio da fotógrafa Juanita: pesquisa de design, redação em espanhol colombiano e desenvolvimento com deploy no Cloudflare.",
+    "agents": [
+        "project:design-researcher",
+        "project:content-writer",
+        "project:site-developer"
+    ]
+}

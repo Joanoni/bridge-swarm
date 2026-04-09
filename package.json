@@ -1,0 +1,14 @@
+{
+    "name": "bridge-app",
+    "version": "1.3.0",
+    "description": "AI Swarm standalone application",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "node server.js --port 3000"
+    },
+    "dependencies": {
+        "express": "^4.18.2",
+        "ws": "^8.16.0"
+    }
+}

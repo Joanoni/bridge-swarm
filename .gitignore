@@ -1,0 +1,6 @@
+00_caio/
+node_modules/
+tools/run-terminal-command/bin/
+.wrangler/
+app-settings.json
+server.log

@@ -1,0 +1,13 @@
+{
+    "name": "Design Researcher",
+    "description": "Pesquisa referências de sites de portfólio de fotógrafos e define o conceito visual do site da Juanita.",
+    "tools": [
+        "web_search",
+        "read_file",
+        "write_file"
+    ],
+    "allowedPaths": [],
+    "systemPromptFiles": [
+        "system.md"
+    ]
+}
