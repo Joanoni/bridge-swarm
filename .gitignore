@@ -4,3 +4,11 @@ tools/run-terminal-command/bin/
 .wrangler/
 app-settings.json
 server.log
+
+# Runtime-generated data (not persisted across deploys)
+chats/*/
+!chats/*/.gitkeep
+projects/*/
+!projects/*/.gitkeep
+teams/*/
+!teams/.gitkeep

@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const args = process.argv.slice(2);
 const appRoot = path.resolve(__dirname);
-let port = 3000;
+let port = process.env.PORT || 3000;
 
 for (let i = 0; i < args.length; i++) {
     if (args[i] === '--port' && args[i + 1]) {
