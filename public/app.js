@@ -13,6 +13,9 @@ var agentSelect = $('agent-select'), inputEl = $('user-input'), sendBtn = $('sen
 var autocompleteEl = $('autocomplete'), infoContent = $('info-content');
 var globalCost = $('global-cost'), connStatus = $('conn-status');
 var projectSelectEl = $('project-select');
+var sidebarEl = $('sidebar');
+var sidebarToggle = $('sidebar-toggle');
+var sidebarBackdrop = $('sidebar-backdrop');
 // New chat modal
 var newChatOverlay = $('new-chat-overlay'), closeNewChat = $('close-new-chat');
 var newChatName = $('new-chat-name'), newChatProject = $('new-chat-project');
@@ -36,6 +39,18 @@ var availableProviders = [], activeSwarmAgents = {};
 var isLoading = false, thinkingEl = null, acActiveIndex = -1;
 var _pendingOpenChatId = null;
 var activeProjectId = null; // null = global
+
+// ── Sidebar drawer (mobile) ───────────────────────────────────────────────────
+function openSidebar() {
+    sidebarEl.classList.add('sidebar-open');
+    sidebarBackdrop.classList.add('visible');
+}
+function closeSidebar() {
+    sidebarEl.classList.remove('sidebar-open');
+    sidebarBackdrop.classList.remove('visible');
+}
+sidebarToggle.addEventListener('click', openSidebar);
+sidebarBackdrop.addEventListener('click', closeSidebar);
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 var COLORS = ['#7c6af7','#48bb78','#63b3ed','#ecc94b','#fc8181','#f6ad55','#76e4f7','#b794f4','#68d391','#fbb6ce'];
@@ -142,6 +157,7 @@ projectSelectEl.addEventListener('change', function() {
 async function openChat(chatId) {
     var alreadyOpen = activeChatId === chatId && activeChatEl.style.display !== 'none';
     activeChatId = chatId;
+    closeSidebar();
     renderChatList();
     var chat = allChats.find(function(c){ return c.id === chatId; });
     if (!chat) return;
