@@ -639,11 +639,16 @@ const START_CHAT = {
                     type: 'string',
                     description: 'The agent ID that will receive the initial message (used as the sender badge). Must be one of the agents in the chat.',
                 },
+                attachFiles: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Optional list of file names from the current chat\'s attached files (the "files" folder of the originating chat) to copy into the new chat. Use this to pass reference files, images, or documents to the new project chat.',
+                },
             },
             required: ['name', 'agents'],
         },
     },
-    execute: async ({ name, agents, projectId, initialMessage, firstAgentId }) => {
+    execute: async ({ name, agents, projectId, initialMessage, firstAgentId, attachFiles }) => {
         try {
             const chatId = _aiChat.createChat({ name, agents, projectId });
             _log(`[Swarmito] Started chat: ${name} (${chatId})`);
@@ -652,6 +657,52 @@ const START_CHAT = {
             _broadcast('OPEN_CHAT', { chatId });
 
             const firstAgent = firstAgentId || (agents && agents.length > 0 ? agents[0] : null);
+
+            // Copy attached files from the originating chat's files folder to the new chat's files folder
+            const attachedFiles = [];
+            if (Array.isArray(attachFiles) && attachFiles.length > 0 && _currentChatId) {
+                // Resolve source dir — originating chat (global: chats/<id>/files/)
+                const srcChatSession = _aiChat.getChat(_currentChatId);
+                const srcChatsBase = (srcChatSession && srcChatSession.projectId)
+                    ? (() => {
+                        const p = getProjectPath(srcChatSession.projectId);
+                        return p ? path.join(p, 'chats') : path.join(_appRoot, 'chats');
+                    })()
+                    : path.join(_appRoot, 'chats');
+                const srcFilesDir = path.join(srcChatsBase, _currentChatId, 'files');
+
+                // Resolve destination dir — new chat
+                const resolvedProjectId = projectId || null;
+                const destChatsBase = resolvedProjectId
+                    ? (() => {
+                        const p = getProjectPath(resolvedProjectId);
+                        return p ? path.join(p, 'chats') : path.join(_appRoot, 'chats');
+                    })()
+                    : path.join(_appRoot, 'chats');
+                const destFilesDir = path.join(destChatsBase, chatId, 'files');
+
+                if (fs.existsSync(srcFilesDir)) {
+                    fs.mkdirSync(destFilesDir, { recursive: true });
+                    for (const filename of attachFiles) {
+                        const safe = filename.replace(/[^a-zA-Z0-9._\-]/g, '_');
+                        const srcPath = path.join(srcFilesDir, safe);
+                        const destPath = path.join(destFilesDir, safe);
+                        try {
+                            if (fs.existsSync(srcPath)) {
+                                fs.copyFileSync(srcPath, destPath);
+                                attachedFiles.push(safe);
+                                _log(`[Swarmito] Copied file "${safe}" to new chat ${chatId}`);
+                            } else {
+                                _log(`[Swarmito] File "${safe}" not found in source chat files — skipped`);
+                            }
+                        } catch (copyErr) {
+                            _log(`[Swarmito] Failed to copy "${safe}": ${copyErr.message}`);
+                        }
+                    }
+                } else {
+                    _log(`[Swarmito] Source files dir not found: ${srcFilesDir}`);
+                }
+            }
 
             if (initialMessage) {
                 // Inject the briefing silently — no hooks fired, no tag-based routing triggered
@@ -663,7 +714,7 @@ const START_CHAT = {
                 }
             }
 
-            return { ok: true, chatId, name, firstAgentId: firstAgent || null };
+            return { ok: true, chatId, name, firstAgentId: firstAgent || null, attachedFiles };
         } catch (err) {
             return { ok: false, error: err.message };
         }

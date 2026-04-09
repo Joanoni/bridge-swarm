@@ -119,7 +119,7 @@ Use this pattern for agents that need to know about all registered projects (e.g
 - `delete_team` — delete teams
 - `copy_team` — copy teams between scopes
 - `create_project` — create a new project (auto-creates folder structure, no path needed)
-- `start_chat` — create a new chat session with specified agents and inject an initial briefing
+- `start_chat` — create a new chat session with specified agents and inject an initial briefing. Accepts optional `attachFiles: string[]` — a list of file names from the current chat's attached files to copy into the new chat (useful for passing images, documents, or reference files to a project chat)
 - `handoff_to_agent` — route the conversation to another agent or back to the user
 
 ### Automatic `projectId` inference
