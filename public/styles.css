@@ -110,6 +110,10 @@
 }
 
 html, body { height: 100%; overflow: hidden; }
+/* Mobile: use dynamic viewport height to avoid browser chrome overlap */
+@supports (height: 100dvh) {
+    html, body { height: 100dvh; }
+}
 
 body {
     font-family: var(--font-sans);
@@ -124,6 +128,7 @@ body {
 #app {
     display: flex;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
 }
 
