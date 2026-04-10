@@ -1,0 +1,243 @@
+# Bridge Swarm — Project Context for AI Agents
+
+## What is Bridge Swarm
+
+Bridge Swarm is a self-hosted AI chat UI with a multi-agent swarm system. It allows users to create and manage AI agents that can autonomously hand off tasks to each other. The system is built on Node.js + Express + WebSocket and uses the Anthropic Claude API directly via raw HTTPS (no SDK). The frontend is vanilla JS with no framework and no bundler.
+
+Key characteristics:
+- Self-hosted: runs locally or on any Node.js server
+- Multi-agent: multiple agents can collaborate on a task via handoffs
+- Swarm orchestration: agents hand off to each other autonomously until the task is done or control returns to the user
+- Tool-equipped agents: each agent can have a set of tools (file read/write, terminal, web search, etc.)
+- Project-scoped: agents, teams, and chats can be global or scoped to a project
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| HTTP server | Express |
+| Real-time | WebSocket (`ws` library) |
+| AI provider | Anthropic Claude (raw HTTPS, no SDK) |
+| Frontend | Vanilla JS, plain CSS |
+| File storage | Local filesystem (no database) |
+
+---
+
+## Project Structure
+
+```
+server.js                    — Entry point: CLI args, init core modules, mount routes, WebSocket, listen
+server/
+  routes-chat.js             — POST /api/chat, GET /api/chats, file upload/download routes
+  routes-projects.js         — GET/POST/DELETE /api/projects, POST /api/reset
+  routes-export.js           — GET /api/export, POST /api/import
+
+core/
+  engine.js                  — Entry point re-exporting engine/
+  engine/
+    providers.js             — Model list, pricing table, calcCost, getProviders
+    api-client.js            — callApi() with retry logic (handles 429/529)
+    message-sanitizer.js     — sanitizeMsg, stripImagesFromHistory, buildToolResultContent, truncate
+    turn-runner.js           — sendMessage() — the main agentic loop (tool_use iterations)
+
+  ai-chat.js                 — Entry point re-exporting chat/
+  chat/
+    state.js                 — Shared Maps: chats, hooks; injected deps (_engine, _settings, etc.)
+    hooks.js                 — use(), unuse(), runHooks() — plugin hook system
+    agent-loader.js          — listAgentsInDir, listAllAgents, loadAgentMeta, loadSystemPrompt
+    context-builder.js       — buildContextPrefix (OS/shell/time), buildFilesSection, getChatFilesDir
+    session.js               — ChatSession class (id, name, agents, history, activeAgentId, cost)
+    persistence.js           — saveChatToDisk, loadChatsFromDisk, deleteChatFromDisk, moveChatToProject
+    message-handler.js       — processSendMessage, continueSwarm, injectAssistantMessage
+    chat-manager.js          — createChat, deleteChat, getChat, listChats, setActiveAgent, setHistory
+    commands.js              — handleCommand() — the big switch/case for all WebSocket commands
+
+  ai-swarm.js                — Entry point re-exporting swarm/
+  swarm/
+    state.js                 — chatSwarmState Map, getSwarmState, MAX_CONSECUTIVE_SELF_TURNS=3
+    handoff-tool.js          — buildHandoffTool() — the handoff_to_agent tool definition
+    history-rewriter.js      — rewriteHistoryWithToolSummaries, extractHandoffFromHistory
+    agent-tools-builder.js   — buildAgentTools() — assembles tool list for a given agent
+    swarm-loop.js            — onBeforeMessageSent, onAfterMessageReceived — the swarm orchestration
+
+  swarmito.js                — Entry point re-exporting swarmito/
+  swarmito/
+    state.js                 — Module vars + uid(), getProjectPath(), copyDirSync(), setCurrentChatId()
+    path-helpers.js          — globalAgentsDir, projectAgentsDir, globalTeamsDir, projectTeamsDir
+    agent-tools.js           — CREATE_AGENT, UPDATE_AGENT, DELETE_AGENT, COPY_AGENT tool objects
+    team-tools.js            — CREATE_TEAM, UPDATE_TEAM, DELETE_TEAM, COPY_TEAM tool objects
+    project-chat-tools.js    — CREATE_PROJECT, START_CHAT tool objects
+
+  ai-tools.js                — Loads all tools from tools/*/tool.js; getToolsForAgent(), getAllToolNames()
+  settings.js                — init(), getSettings(), saveSettings(), getProjects(), addProject(), removeProject()
+  export-import.js           — exportGlobal(), exportProject(), importBundle()
+
+tools/
+  utils.js                   — resolveSafe() — path validation against allowedPaths
+  read-file/tool.js          — Reads text, images (with compression), PDFs, SVGs
+  write-file/tool.js         — Writes text files, creates directories
+  edit-file/tool.js          — Search/replace edits on files
+  list-directory/tool.js     — Lists directory entries, optionally recursive
+  run-terminal-command/tool.js — Runs shell commands via Go runner binary (30s timeout)
+  web-search/tool.js         — Tavily web search
+  deploy-cloudflare/tool.js  — Deploys static sites to Cloudflare Pages via wrangler
+
+public/
+  index.html                 — Single HTML file, loads all JS modules in order
+  styles.css                 — All CSS
+  app.js                     — Startup + event listeners (entry point)
+  app/
+    state.js                 — App namespace init, all DOM refs, all state vars
+    utils.js                 — agentColor, shortName, md (markdown), isToolSummary
+    api.js                   — apiChat, apiPost, apiDelete, fetch wrappers
+    ui-messages.js           — appendMessage, showThinking, setLoading, startEditMessage
+    ui-chat.js               — renderChatList, openChat, renderFilesPanel, renderInfoPanel
+    ui-settings.js           — loadSettings, renderProjectsList, export/import handlers
+    websocket.js             — connectWS, handleServerEvent (all WS event handlers)
+
+data/                        — Mutable data directory (can be overridden via DATA_DIR env var)
+  app-settings.json          — API keys, model selection, spending limit
+  projects.json              — Registered projects list
+  agents/                    — Global agents (e.g. agents/swarmito/)
+  teams/                     — Global teams
+  chats/                     — Global chats (each chat is a folder with history.json + raw.json)
+  projects/                  — Project directories (each has agents/, teams/, chats/, src/)
+```
+
+---
+
+## How Agents Work
+
+- Each agent lives in a directory: `agents/<agentId>/`
+- `agent.json`: `{ name, description, tools[], allowedPaths[], systemPromptFiles[] }`
+- `system.md` (or files listed in `systemPromptFiles`): the system prompt
+- Agents can be global (`data/agents/`) or project-scoped (`data/projects/<id>/agents/`)
+- `swarmito` is the built-in orchestrator agent — always present, cannot be deleted
+- Agents are loaded dynamically from disk; no restart needed to add/modify agents
+
+---
+
+## How the Swarm Works
+
+1. User sends a message → `processSendMessage()` fires
+2. `before:message-sent` hook → `onBeforeMessageSent()` injects tools for the active agent
+3. Engine runs the agentic loop (tool_use iterations) until `end_turn`
+4. `after:message-received` hook → `onAfterMessageReceived()` checks for `handoff_to_agent` tool result
+5. If handoff to another agent: `continueSwarm()` is called with the next agent's tools
+6. Loop continues until handoff to `"user"` or max consecutive self-turns (3) reached
+7. History is rewritten after each agent turn: tool_use blocks → human-readable summaries
+
+The swarm state per chat is tracked in `core/swarm/state.js` via the `chatSwarmState` Map.
+
+---
+
+## How Tools Work
+
+- Each tool lives in `tools/<toolName>/tool.js`
+- Must export: `{ definition, execute, toMessage }`
+- `definition`: JSON Schema for the tool (name, description, parameters)
+- `execute(input, agentContext)`: async function, returns `{ ok, ... }`
+- `toMessage(input, result, agentId)`: returns a string summary shown in chat
+- `agentContext`: `{ allowedPaths, workspaceRoot, tavilyApiKey, cloudflareAccountId, cloudflareApiToken }`
+- Tools are loaded dynamically from disk by `ai-tools.js`
+- Path safety is enforced via `tools/utils.js` → `resolveSafe()` which validates paths against `allowedPaths`
+
+---
+
+## WebSocket Events (server → client)
+
+| Event | Payload |
+|---|---|
+| `INIT_STATE` | `{ chats, projects }` — sent on connect |
+| `APPEND_MESSAGE` | `{ chatId, role, content, agentId }` |
+| `REPLACE_HISTORY` | `{ chatId, messages }` — full history replace |
+| `COST_UPDATED` | `{ chatId, totalCostUsd }` |
+| `AGENT_STARTED` | `{ chatId, agentId }` |
+| `AGENT_FINISHED` | `{ chatId, agentId }` |
+| `SWARM_IDLE` | `{ chatId }` — swarm finished |
+| `TOOL_CALL` | `{ chatId, agentId, toolName, input }` |
+| `TOOL_RESULT` | `{ chatId, agentId, toolName, ok }` |
+| `SPENDING_LIMIT_REACHED` | `{ chatId, totalCostUsd }` |
+| `OPEN_CHAT` | `{ chatId }` — navigate to chat |
+| `CHAT_CREATED` | `{ id, ... }` |
+| `CHAT_DELETED` | `{ chatId }` |
+| `PROJECTS_UPDATED` | `{ projects }` |
+| `LOG` | `{ message }` |
+
+---
+
+## REST API
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/chat` | All chat commands (CREATE_CHAT, SEND_MESSAGE, GET_HISTORY, etc.) |
+| `GET` | `/api/chats?projectId=` | List chats |
+| `GET` | `/api/projects` | List projects |
+| `POST` | `/api/projects` | Create project |
+| `DELETE` | `/api/projects` | Delete project |
+| `POST` | `/api/reset` | Wipe all data and reinitialize |
+| `GET` | `/api/export?projectId=` | Download ZIP bundle |
+| `POST` | `/api/import` | Upload ZIP bundle |
+| `GET` | `/api/chat/:chatId/files` | List chat file attachments |
+| `POST` | `/api/chat/:chatId/files` | Upload chat file attachment |
+| `DELETE` | `/api/chat/:chatId/files` | Delete chat file attachment |
+
+---
+
+## Chat Persistence
+
+- Each chat stored as `chats/<chatId>/history.json` (display-safe) + `raw.json` (full with tool blocks)
+- Global chats: `data/chats/`
+- Project chats: `data/projects/<projectId>/chats/`
+- Chat files (attachments): `chats/<chatId>/files/`
+
+---
+
+## How to Add a New Tool
+
+1. Create `tools/<toolName>/tool.js` with `{ definition, execute, toMessage }`
+2. Add the tool name to the agent's `tools[]` array in `agent.json`
+3. No restart needed — tools are loaded dynamically (or call `reloadTools()`)
+
+---
+
+## How to Add a New Agent
+
+- Create `data/agents/<agentId>/agent.json` and `system.md`
+- Or use the `create_agent` tool via Swarmito in the chat UI
+
+---
+
+## How to Add a New Route
+
+1. Add the route handler to the appropriate file in `server/`
+2. The factory function receives all dependencies via its parameter object
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATA_DIR` | `./data` | Override data directory |
+| `PORT` | `3000` | HTTP port |
+| `TAVILY_API_KEY` | — | Fallback if not set in settings |
+| `CLOUDFLARE_ACCOUNT_ID` | — | Fallback for deploy tool |
+| `CLOUDFLARE_API_TOKEN` | — | Fallback for deploy tool |
+
+---
+
+## Code Conventions
+
+- All code, comments, variable names in **English**
+- Node.js **CommonJS** (`require`/`module.exports`) — no ESM
+- No TypeScript, no build step for backend
+- Frontend: vanilla JS with `App.*` namespace pattern, no bundler
+- Max **300 lines per file**
+- Entry points re-export from submodules — external consumers only import entry points
+- **Dependency injection** via `init({ ... })` — no global singletons across domain boundaries
+- State shared within a domain via `state.js` module
+- No external database — all persistence is local filesystem JSON files

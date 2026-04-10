@@ -2,6 +2,7 @@
     "name": "Swarmito",
     "description": "The Bridge Swarm manager. Creates and manages agents, teams, projects, and chats.",
     "tools": [
+        "send_chat_message",
         "read_file",
         "list_directory",
         "run_terminal_command",
