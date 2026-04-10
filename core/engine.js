@@ -136,6 +136,34 @@ async function sendMessage(apiKey, modelId, messages, systemPrompt, tools, onPro
             : m.content,
     });
 
+    // Replace base64 image blocks in historical tool_result messages with lightweight placeholders.
+    // Images are only needed in the turn they are first read; keeping them in every subsequent
+    // request causes the payload to grow unboundedly and triggers 413 errors from the API.
+    // keepLast: number of trailing messages whose images are preserved (default 1 = keep most recent).
+    const stripImagesFromHistory = (msgs, keepLast = 1) => {
+        const stripIndex = msgs.length - keepLast;
+        return msgs.map((m, idx) => {
+            if (idx >= stripIndex) return m; // preserve images in the last keepLast messages
+            if (m.role !== 'user') return m;
+            const content = Array.isArray(m.content) ? m.content : null;
+            if (!content) return m;
+            const stripped = content.map((block) => {
+                if (block.type !== 'tool_result') return block;
+                const blockContent = block.content;
+                if (!Array.isArray(blockContent)) return block;
+                const hasImage = blockContent.some(b => b.type === 'image');
+                if (!hasImage) return block;
+                const newContent = blockContent.map((b) => {
+                    if (b.type !== 'image') return b;
+                    const label = b.source?.file_path || b.source?.media_type || 'image';
+                    return { type: 'text', text: `[${label} — already processed, not re-sent]` };
+                });
+                return { ...block, content: newContent };
+            });
+            return { ...m, content: stripped };
+        });
+    };
+
     const workingMessages = messages.map(sanitizeMsg);
     const addedMessages = [];
     let displayText = null;
@@ -150,10 +178,13 @@ async function sendMessage(apiKey, modelId, messages, systemPrompt, tools, onPro
     console.log(`[Engine] ${agentTag}Starting turn | model=${modelId} | tools=[${toolNames.join(', ')}] | history=${workingMessages.length} msgs`);
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+        // Strip images from all but the most recent tool_result before each API call.
+        // workingMessages retains full data for persistence; messagesForApi is a stripped copy.
+        const messagesForApi = stripImagesFromHistory(workingMessages);
         const requestBody = {
             model: modelId,
             max_tokens: 64000,
-            messages: workingMessages,
+            messages: messagesForApi,
         };
         if (systemPrompt && systemPrompt.trim().length > 0) {
             requestBody.system = systemPrompt.trim();
@@ -245,7 +276,8 @@ async function sendMessage(apiKey, modelId, messages, systemPrompt, tools, onPro
                     }
                     toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: resultContent, _meta: { tool: block.name, timestamp: new Date().toISOString() } });
                 }
-                const toolResultMessage = { role: 'user', content: toolResults };
+                const cappedToolResults = toolResults;
+                const toolResultMessage = { role: 'user', content: cappedToolResults };
                 workingMessages.push(sanitizeMsg(toolResultMessage));
                 addedMessages.push(toolResultMessage);
             } else {
@@ -290,7 +322,8 @@ async function sendMessage(apiKey, modelId, messages, systemPrompt, tools, onPro
             toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: resultContent, _meta: { tool: block.name, timestamp: new Date().toISOString() } });
         }
 
-        const toolResultMessage = { role: 'user', content: toolResults };
+        const cappedToolResults = toolResults;
+        const toolResultMessage = { role: 'user', content: cappedToolResults };
         workingMessages.push(sanitizeMsg(toolResultMessage));
         addedMessages.push(toolResultMessage);
     }

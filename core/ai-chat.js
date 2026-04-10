@@ -6,6 +6,7 @@ const crypto = require('crypto');
 // ── Module-level state ────────────────────────────────────────────────────────
 
 let _appRoot;
+let _dataRoot;
 let _engine;
 let _settings;
 let _broadcast;
@@ -60,7 +61,7 @@ async function runHooks(hookName, data) {
 // ── Agent discovery ───────────────────────────────────────────────────────────
 
 function globalAgentsDir() {
-    return path.join(_appRoot, 'agents');
+    return path.join(_dataRoot, 'agents');
 }
 
 function projectAgentsDir(projectPath) {
@@ -177,9 +178,9 @@ function getChatFilesDir(chatId, projectId) {
         ? (() => {
             const projects = _settings.getProjects();
             const project = projects.find(p => p.id === projectId);
-            return project ? path.join(project.path, 'chats') : path.join(_appRoot, 'chats');
+            return project ? path.join(project.path, 'chats') : path.join(_dataRoot, 'chats');
         })()
-        : path.join(_appRoot, 'chats');
+        : path.join(_dataRoot, 'chats');
     return path.join(chatsBase, chatId, 'files');
 }
 
@@ -242,10 +243,10 @@ class ChatSession {
     }
 
     getWorkspaceRoot() {
-        if (!this.projectId) return _appRoot;
+        if (!this.projectId) return _dataRoot;
         const projects = _settings.getProjects();
         const project = projects.find(p => p.id === this.projectId);
-        return project ? project.path : _appRoot;
+        return project ? project.path : _dataRoot;
     }
 
     toJSON() {
@@ -268,7 +269,7 @@ class ChatSession {
 // ── Chat persistence ──────────────────────────────────────────────────────────
 
 function globalChatsDir() {
-    return path.join(_appRoot, 'chats');
+    return path.join(_dataRoot, 'chats');
 }
 
 function projectChatsDir(projectPath) {
@@ -952,8 +953,9 @@ async function handleCommand(command, payload) {
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
-function init({ appRoot, engine, settings, broadcast, log }) {
+function init({ appRoot, dataRoot, engine, settings, broadcast, log }) {
     _appRoot = appRoot;
+    _dataRoot = dataRoot || appRoot;
     _engine = engine;
     _settings = settings;
     _broadcast = broadcast;
@@ -962,8 +964,9 @@ function init({ appRoot, engine, settings, broadcast, log }) {
     // Load persisted chats
     loadChatsFromDisk();
 
-    // Ensure global agents dir exists
-    fs.mkdirSync(path.join(appRoot, 'agents'), { recursive: true });
+    // Ensure global dirs exist in dataRoot
+    fs.mkdirSync(path.join(_dataRoot, 'agents'), { recursive: true });
+    fs.mkdirSync(path.join(_dataRoot, 'chats'), { recursive: true });
 
     _log?.('[AI Chat] Initialized.');
 }

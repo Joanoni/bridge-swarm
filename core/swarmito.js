@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 let _appRoot;
+let _dataRoot;
 let _settings;
 let _aiChat;
 let _broadcast;
@@ -26,11 +27,11 @@ function uid() {
 // ── Path helpers ──────────────────────────────────────────────────────────────
 
 function globalAgentsDir() {
-    return path.join(_appRoot, 'agents');
+    return path.join(_dataRoot, 'agents');
 }
 
 function globalTeamsDir() {
-    return path.join(_appRoot, 'teams');
+    return path.join(_dataRoot, 'teams');
 }
 
 function projectAgentsDir(projectPath) {
@@ -587,7 +588,7 @@ const CREATE_PROJECT = {
         for (const { name } of projects) {
             try {
                 const id = uid();
-                const projectPath = path.join(_appRoot, 'projects', id);
+                const projectPath = path.join(_dataRoot, 'projects', id);
                 fs.mkdirSync(path.join(projectPath, 'agents'), { recursive: true });
                 fs.mkdirSync(path.join(projectPath, 'teams'), { recursive: true });
                 fs.mkdirSync(path.join(projectPath, 'src'), { recursive: true });
@@ -680,9 +681,9 @@ const START_CHAT = {
                 const srcChatsBase = (srcChatSession && srcChatSession.projectId)
                     ? (() => {
                         const p = getProjectPath(srcChatSession.projectId);
-                        return p ? path.join(p, 'chats') : path.join(_appRoot, 'chats');
+                        return p ? path.join(p, 'chats') : path.join(_dataRoot, 'chats');
                     })()
-                    : path.join(_appRoot, 'chats');
+                    : path.join(_dataRoot, 'chats');
                 const srcFilesDir = path.join(srcChatsBase, _currentChatId, 'files');
 
                 // Resolve destination dir — new chat
@@ -690,9 +691,9 @@ const START_CHAT = {
                 const destChatsBase = resolvedProjectId
                     ? (() => {
                         const p = getProjectPath(resolvedProjectId);
-                        return p ? path.join(p, 'chats') : path.join(_appRoot, 'chats');
+                        return p ? path.join(p, 'chats') : path.join(_dataRoot, 'chats');
                     })()
-                    : path.join(_appRoot, 'chats');
+                    : path.join(_dataRoot, 'chats');
                 const destFilesDir = path.join(destChatsBase, chatId, 'files');
 
                 if (fs.existsSync(srcFilesDir)) {
@@ -759,9 +760,9 @@ function copyDirSync(src, dest) {
 
 function getSwarmitoPaths() {
     const paths = [
-        path.join(_appRoot, 'agents'),
-        path.join(_appRoot, 'teams'),
-        path.join(_appRoot, 'chats'),
+        path.join(_dataRoot, 'agents'),
+        path.join(_dataRoot, 'teams'),
+        path.join(_dataRoot, 'chats'),
     ];
     const projects = _settings.getProjects();
     for (const project of projects) {
@@ -792,14 +793,15 @@ function getSwaarmitoTools() {
     }));
 }
 
-function init({ appRoot, settings, aiChat, broadcast, log }) {
+function init({ appRoot, dataRoot, settings, aiChat, broadcast, log }) {
     _appRoot = appRoot;
+    _dataRoot = dataRoot || appRoot;
     _settings = settings;
     _aiChat = aiChat;
     _broadcast = broadcast || (() => {});
     _log = log || console.log;
 
-    // Ensure global dirs exist
+    // Ensure global dirs exist in dataRoot
     fs.mkdirSync(globalAgentsDir(), { recursive: true });
     fs.mkdirSync(globalTeamsDir(), { recursive: true });
 

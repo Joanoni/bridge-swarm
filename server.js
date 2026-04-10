@@ -7,6 +7,10 @@ const multer = require('multer');
 
 const args = process.argv.slice(2);
 const appRoot = path.resolve(__dirname);
+// DATA_DIR separates mutable data (chats, agents, projects, settings) from
+// the application code. Defaults to ./data inside the repo for local dev.
+// On Railway: mount a persistent volume at /data and set DATA_DIR=/data.
+const dataRoot = path.resolve(process.env.DATA_DIR || path.join(__dirname, 'data'));
 let port = process.env.PORT || 3000;
 
 for (let i = 0; i < args.length; i++) {
@@ -19,6 +23,7 @@ for (let i = 0; i < args.length; i++) {
 const { version, name } = require('./package.json');
 console.log(`[Server] ${name} v${version}`);
 console.log(`[Server] App root: ${appRoot}`);
+console.log(`[Server] Data root: ${dataRoot}`);
 console.log(`[Server] Port: ${port}`);
 
 // ── Load dependencies ─────────────────────────────────────────────────────────
@@ -54,10 +59,11 @@ function log(msg) {
 
 // ── Initialize core modules ───────────────────────────────────────────────────
 
-settings.init(appRoot);
+settings.init(appRoot, dataRoot);
 
 aiChat.init({
     appRoot,
+    dataRoot,
     engine,
     settings,
     broadcast,
@@ -66,6 +72,7 @@ aiChat.init({
 
 swarmito.init({
     appRoot,
+    dataRoot,
     settings,
     aiChat,
     broadcast,
@@ -123,7 +130,7 @@ app.post('/api/projects', (req, res) => {
     try {
         const crypto = require('crypto');
         const id = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
-        const projectPath = path.join(appRoot, 'projects', id);
+        const projectPath = path.join(dataRoot, 'projects', id);
         fs.mkdirSync(path.join(projectPath, 'agents'), { recursive: true });
         fs.mkdirSync(path.join(projectPath, 'teams'), { recursive: true });
         fs.mkdirSync(path.join(projectPath, 'src'), { recursive: true });
@@ -163,7 +170,7 @@ app.get('/api/chats', (req, res) => {
 app.post('/api/reset', async (req, res) => {
     try {
         // 1. Delete all project directories
-        const projectsDir = path.join(appRoot, 'projects');
+        const projectsDir = path.join(dataRoot, 'projects');
         if (fs.existsSync(projectsDir)) {
             for (const entry of fs.readdirSync(projectsDir, { withFileTypes: true })) {
                 if (entry.isDirectory()) {
@@ -173,18 +180,18 @@ app.post('/api/reset', async (req, res) => {
         }
 
         // 2. Clear projects.json
-        const projectsJson = path.join(appRoot, 'projects.json');
+        const projectsJson = path.join(dataRoot, 'projects.json');
         fs.writeFileSync(projectsJson, '[]', 'utf8');
 
         // 3. Delete all global chats
-        const chatsDir = path.join(appRoot, 'chats');
+        const chatsDir = path.join(dataRoot, 'chats');
         if (fs.existsSync(chatsDir)) {
             fs.rmSync(chatsDir, { recursive: true, force: true });
         }
         fs.mkdirSync(chatsDir, { recursive: true });
 
         // 4. Delete all global agents except swarmito
-        const agentsDir = path.join(appRoot, 'agents');
+        const agentsDir = path.join(dataRoot, 'agents');
         if (fs.existsSync(agentsDir)) {
             for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
                 if (entry.isDirectory() && entry.name !== 'swarmito') {
@@ -194,7 +201,7 @@ app.post('/api/reset', async (req, res) => {
         }
 
         // 5. Delete all global teams
-        const teamsDir = path.join(appRoot, 'teams');
+        const teamsDir = path.join(dataRoot, 'teams');
         if (fs.existsSync(teamsDir)) {
             fs.rmSync(teamsDir, { recursive: true, force: true });
         }
@@ -202,7 +209,7 @@ app.post('/api/reset', async (req, res) => {
 
         // 6. Reinitialize aiChat with clean state
         aiChat.deactivate();
-        aiChat.init({ appRoot, engine, settings, broadcast, log });
+        aiChat.init({ appRoot, dataRoot, engine, settings, broadcast, log });
 
         // 7a. Re-register aiSwarm hooks (deactivate cleared them)
         aiSwarm.init({ aiChat, aiTools, swarmito, broadcast, log });
@@ -233,9 +240,9 @@ function resolveChatFilesDir(chatId) {
         ? (() => {
             const projects = settings.getProjects();
             const project = projects.find(p => p.id === chat.projectId);
-            return project ? path.join(project.path, 'chats') : path.join(appRoot, 'chats');
+            return project ? path.join(project.path, 'chats') : path.join(dataRoot, 'chats');
         })()
-        : path.join(appRoot, 'chats');
+        : path.join(dataRoot, 'chats');
     return path.join(chatsBase, chatId, 'files');
 }
 
@@ -298,9 +305,9 @@ app.get('/api/export', (req, res) => {
     try {
         const { projectId } = req.query;
         if (projectId) {
-            exportImport.exportProject(appRoot, settings, projectId, res);
+            exportImport.exportProject(appRoot, dataRoot, settings, projectId, res);
         } else {
-            exportImport.exportGlobal(appRoot, settings, res);
+            exportImport.exportGlobal(appRoot, dataRoot, settings, res);
         }
     } catch (err) {
         if (!res.headersSent) {
@@ -319,7 +326,7 @@ app.post('/api/import', importUpload.single('bundle'), async (req, res) => {
     if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
     try {
         await exportImport.importBundle(
-            appRoot, settings, aiChat, aiSwarm, aiTools, swarmito, engine, broadcast, log,
+            appRoot, dataRoot, settings, aiChat, aiSwarm, aiTools, swarmito, engine, broadcast, log,
             req.file.buffer
         );
         res.json({ ok: true });

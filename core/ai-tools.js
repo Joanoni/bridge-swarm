@@ -1,28 +1,47 @@
-const readFile           = require('../tools/read-file/tool');
-const readBinaryFile     = require('../tools/read-binary-file/tool');
-const writeFile          = require('../tools/write-file/tool');
-const editFile           = require('../tools/edit-file/tool');
-const listDirectory      = require('../tools/list-directory/tool');
-const runTerminalCmd     = require('../tools/run-terminal-command/tool');
-const webSearch          = require('../tools/web-search/tool');
-const deployCloudflare   = require('../tools/deploy-cloudflare/tool');
+const fs = require('fs');
+const path = require('path');
+
+const toolsDir = path.join(__dirname, '..', 'tools');
 
 // ── Tool registry ─────────────────────────────────────────────────────────────
 
-const ALL_TOOLS = {
-    read_file:            readFile,
-    read_binary_file:     readBinaryFile,
-    write_file:           writeFile,
-    edit_file:            editFile,
-    list_directory:       listDirectory,
-    run_terminal_command: runTerminalCmd,
-    web_search:           webSearch,
-    deploy_cloudflare:    deployCloudflare,
-};
+/** @type {Record<string, { definition: object, execute: Function, toMessage: Function, _toolPath: string }>} */
+const ALL_TOOLS = {};
+
+function loadTools() {
+    const entries = fs.readdirSync(toolsDir, { withFileTypes: true });
+    for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const toolPath = path.join(toolsDir, entry.name, 'tool.js');
+        if (!fs.existsSync(toolPath)) continue;
+        try {
+            const tool = require(toolPath);
+            if (!tool.definition || !tool.definition.name) continue;
+            ALL_TOOLS[tool.definition.name] = { ...tool, _toolPath: toolPath };
+        } catch (err) {
+            console.error(`[ai-tools] Failed to load tool at ${toolPath}:`, err.message);
+        }
+    }
+}
+
+function reloadTools() {
+    for (const name of Object.keys(ALL_TOOLS)) {
+        const toolPath = ALL_TOOLS[name]._toolPath;
+        try { delete require.cache[require.resolve(toolPath)]; } catch { /* ignore */ }
+        delete ALL_TOOLS[name];
+    }
+    loadTools();
+}
+
+// Initial load
+loadTools();
+
+// ── Public API ────────────────────────────────────────────────────────────────
 
 /**
  * Returns tool objects for the given tool names, bound with agent context.
- * agentContext: { allowedPaths: string[], workspaceRoot: string }
+ * @param {string[]} toolNames
+ * @param {{ allowedPaths: string[], workspaceRoot: string }} agentContext
  */
 function getToolsForAgent(toolNames, agentContext) {
     return toolNames
@@ -41,4 +60,4 @@ function getAllToolNames() {
     return Object.keys(ALL_TOOLS);
 }
 
-module.exports = { getToolsForAgent, getAllToolNames };
+module.exports = { getToolsForAgent, getAllToolNames, reloadTools };

@@ -2,13 +2,19 @@
 node_modules/
 tools/run-terminal-command/bin/
 .wrangler/
-app-settings.json
 server.log
 
-# Runtime-generated data (not persisted across deploys)
-chats/*/
-!chats/*/.gitkeep
-projects/*/
-!projects/*/.gitkeep
-teams/*/
-!teams/.gitkeep
+# Runtime settings (API keys) — not committed
+data/app-settings.json
+
+# Runtime-generated data — not committed (only scaffolding is tracked)
+data/chats/*/
+!data/chats/*/.gitkeep
+data/projects/*/
+!data/projects/*/.gitkeep
+data/teams/*/
+!data/teams/.gitkeep
+
+# Non-swarmito agents are runtime-created — not committed
+data/agents/*/
+!data/agents/swarmito/

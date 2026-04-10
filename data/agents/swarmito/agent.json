@@ -3,7 +3,6 @@
     "description": "The Bridge Swarm manager. Creates and manages agents, teams, projects, and chats.",
     "tools": [
         "read_file",
-        "read_binary_file",
         "list_directory",
         "run_terminal_command",
         "web_search"

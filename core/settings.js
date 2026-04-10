@@ -12,13 +12,17 @@ const DEFAULT_SETTINGS = {
 };
 
 let appRoot;
+let dataRoot;
 let settingsFilePath;
 let projectsFilePath;
 
-function init(root) {
+function init(root, dataDir) {
     appRoot = root;
-    settingsFilePath = path.join(appRoot, 'app-settings.json');
-    projectsFilePath = path.join(appRoot, 'projects.json');
+    dataRoot = dataDir || root;
+    // Ensure dataRoot exists (important when DATA_DIR points to a fresh volume)
+    fs.mkdirSync(dataRoot, { recursive: true });
+    settingsFilePath = path.join(dataRoot, 'app-settings.json');
+    projectsFilePath = path.join(dataRoot, 'projects.json');
     _migrateProjectsFromSettings();
 }
 
@@ -92,6 +96,10 @@ function getAppRoot() {
     return appRoot;
 }
 
+function getDataRoot() {
+    return dataRoot;
+}
+
 // ── Project management ────────────────────────────────────────────────────────
 
 function getProjects() {
@@ -113,4 +121,4 @@ function removeProject(projectId) {
     _writeProjectsFile(projects);
 }
 
-module.exports = { init, getSettings, saveSettings, getAppRoot, getProjects, addProject, removeProject };
+module.exports = { init, getSettings, saveSettings, getAppRoot, getDataRoot, getProjects, addProject, removeProject };

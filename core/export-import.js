@@ -23,7 +23,7 @@ function addDirToArchive(archive, srcDir, destPrefix) {
  * Stream a global export ZIP to `res`.
  * Includes: agents/ (excl. swarmito), teams/, chats/ (global), projects/ (all), projects.json
  */
-function exportGlobal(appRoot, settings, res) {
+function exportGlobal(appRoot, dataRoot, settings, res) {
     const archive = archiver('zip', { zlib: { level: 6 } });
 
     const date = new Date().toISOString().slice(0, 10);
@@ -37,7 +37,7 @@ function exportGlobal(appRoot, settings, res) {
     archive.append(JSON.stringify({ version: EXPORT_VERSION, exportedAt: new Date().toISOString(), scope: 'global' }, null, 2), { name: 'export-meta.json' });
 
     // agents/ (skip swarmito)
-    const agentsDir = path.join(appRoot, 'agents');
+    const agentsDir = path.join(dataRoot, 'agents');
     if (fs.existsSync(agentsDir)) {
         for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
             if (!entry.isDirectory() || entry.name === 'swarmito') continue;
@@ -46,13 +46,13 @@ function exportGlobal(appRoot, settings, res) {
     }
 
     // teams/
-    addDirToArchive(archive, path.join(appRoot, 'teams'), 'teams');
+    addDirToArchive(archive, path.join(dataRoot, 'teams'), 'teams');
 
     // chats/ (global)
-    addDirToArchive(archive, path.join(appRoot, 'chats'), 'chats');
+    addDirToArchive(archive, path.join(dataRoot, 'chats'), 'chats');
 
     // projects/ + projects.json
-    const projectsJson = path.join(appRoot, 'projects.json');
+    const projectsJson = path.join(dataRoot, 'projects.json');
     if (fs.existsSync(projectsJson)) {
         archive.file(projectsJson, { name: 'projects.json' });
     }
@@ -70,7 +70,7 @@ function exportGlobal(appRoot, settings, res) {
 /**
  * Stream a single-project export ZIP to `res`.
  */
-function exportProject(appRoot, settings, projectId, res) {
+function exportProject(appRoot, dataRoot, settings, projectId, res) {
     const projects = settings.getProjects();
     const project = projects.find(p => p.id === projectId);
     if (!project) throw new Error(`Project not found: ${projectId}`);
@@ -108,7 +108,7 @@ function exportProject(appRoot, settings, projectId, res) {
  * Import a ZIP bundle (Buffer).
  * After writing files, reinitializes aiChat + aiSwarm and broadcasts INIT_STATE.
  */
-async function importBundle(appRoot, settings, aiChat, aiSwarm, aiTools, swarmito, engine, broadcast, log, zipBuffer) {
+async function importBundle(appRoot, dataRoot, settings, aiChat, aiSwarm, aiTools, swarmito, engine, broadcast, log, zipBuffer) {
     // Extract all entries into memory
     const directory = await unzipper.Open.buffer(zipBuffer);
 
@@ -121,9 +121,9 @@ async function importBundle(appRoot, settings, aiChat, aiSwarm, aiTools, swarmit
     log(`[Export-Import] Importing bundle: scope=${meta.scope} version=${meta.version} exportedAt=${meta.exportedAt}`);
 
     if (meta.scope === 'global') {
-        await _importGlobal(appRoot, settings, directory, log);
+        await _importGlobal(dataRoot, settings, directory, log);
     } else if (meta.scope === 'project') {
-        await _importProject(appRoot, settings, meta, directory, log);
+        await _importProject(dataRoot, settings, meta, directory, log);
     } else {
         throw new Error(`Unknown bundle scope: ${meta.scope}`);
     }
@@ -132,7 +132,7 @@ async function importBundle(appRoot, settings, aiChat, aiSwarm, aiTools, swarmit
     aiChat.deactivate();
     aiSwarm.deactivate();
 
-    aiChat.init({ appRoot, engine, settings, broadcast, log });
+    aiChat.init({ appRoot, dataRoot, engine, settings, broadcast, log });
     aiSwarm.init({ aiChat, aiTools, swarmito, broadcast, log });
 
     // Ensure default Swarmito chat exists
@@ -149,7 +149,7 @@ async function importBundle(appRoot, settings, aiChat, aiSwarm, aiTools, swarmit
     log(`[Export-Import] Import complete.`);
 }
 
-async function _importGlobal(appRoot, settings, directory, log) {
+async function _importGlobal(dataRoot, settings, directory, log) {
     // Write all files, skipping swarmito and export-meta.json
     for (const entry of directory.files) {
         if (entry.type === 'Directory') continue;
@@ -164,7 +164,7 @@ async function _importGlobal(appRoot, settings, directory, log) {
         if (p === 'projects.json') {
             const buf = await entry.buffer();
             const importedProjects = JSON.parse(buf.toString('utf8'));
-            await _mergeProjects(appRoot, settings, importedProjects, directory, log);
+            await _mergeProjects(dataRoot, settings, importedProjects, directory, log);
             continue;
         }
 
@@ -172,7 +172,7 @@ async function _importGlobal(appRoot, settings, directory, log) {
         if (p.startsWith('projects/')) continue;
 
         // Write file
-        const dest = path.join(appRoot, p);
+        const dest = path.join(dataRoot, p);
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         const buf = await entry.buffer();
         fs.writeFileSync(dest, buf);
@@ -180,7 +180,7 @@ async function _importGlobal(appRoot, settings, directory, log) {
     }
 }
 
-async function _mergeProjects(appRoot, settings, importedProjects, directory, log) {
+async function _mergeProjects(dataRoot, settings, importedProjects, directory, log) {
     const existingProjects = settings.getProjects();
 
     for (const importedProject of importedProjects) {
@@ -196,7 +196,7 @@ async function _mergeProjects(appRoot, settings, importedProjects, directory, lo
             log(`[Export-Import] Project name conflict for "${importedProject.name}" — assigning new id ${targetId}`);
         }
 
-        const projectPath = path.join(appRoot, 'projects', targetId);
+        const projectPath = path.join(dataRoot, 'projects', targetId);
         fs.mkdirSync(projectPath, { recursive: true });
 
         // Write project files from zip
@@ -224,7 +224,7 @@ async function _mergeProjects(appRoot, settings, importedProjects, directory, lo
     }
 }
 
-async function _importProject(appRoot, settings, meta, directory, log) {
+async function _importProject(dataRoot, settings, meta, directory, log) {
     const existingProjects = settings.getProjects();
     const conflict = existingProjects.find(p => p.name === meta.projectName);
 
@@ -237,7 +237,7 @@ async function _importProject(appRoot, settings, meta, directory, log) {
         log(`[Export-Import] Project name conflict for "${meta.projectName}" — assigning new id ${targetId}`);
     }
 
-    const projectPath = path.join(appRoot, 'projects', targetId);
+    const projectPath = path.join(dataRoot, 'projects', targetId);
     fs.mkdirSync(projectPath, { recursive: true });
 
     const prefix = 'project/';

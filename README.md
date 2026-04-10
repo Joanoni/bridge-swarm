@@ -96,7 +96,16 @@ Open `http://localhost:3000` in your browser.
 
 ## Configuration
 
-Settings are stored in [`app-settings.json`](app-settings.json) at the project root and can be edited through the browser UI (Settings panel).
+Settings are stored in `data/app-settings.json` (or `$DATA_DIR/app-settings.json`) and can be edited through the browser UI (Settings panel).
+
+### DATA_DIR
+
+The `DATA_DIR` environment variable controls where all mutable data is stored (agents, chats, teams, projects, settings). Defaults to `./data` inside the repository.
+
+| Environment | Value |
+|---|---|
+| Local development | *(not set — uses `./data` by default)* |
+| Railway with persistent volume | `DATA_DIR=/data` (mount volume at `/data`) |
 
 | Field | Default | Description |
 |---|---|---|
@@ -123,35 +132,14 @@ Settings are stored in [`app-settings.json`](app-settings.json) at the project r
 bridge-swarm/
 ├── server.js               # Entry point
 ├── package.json
-├── app-settings.json       # Runtime settings (API keys, model)
-├── projects.json           # Registered projects list
 │
-├── core/
+├── core/                   # Application logic (code, not data)
 │   ├── engine.js           # Anthropic API loop
 │   ├── ai-chat.js          # Chat sessions + hook system
 │   ├── ai-swarm.js         # Swarm routing + handoff loop
 │   ├── swarmito.js         # Swarmito meta-tools
 │   ├── ai-tools.js         # Tool registry
 │   └── settings.js         # Settings + projects persistence
-│
-├── agents/
-│   └── swarmito/           # Built-in orchestrator agent
-│       ├── agent.json
-│       └── system.md
-│
-├── teams/                  # Global teams
-├── chats/                  # Global chat histories
-│   └── <chatId>/
-│       ├── history.json    # Display-safe history
-│       └── raw.json        # Full history with tool calls
-│
-├── projects/               # Project workspaces
-│   └── <projectId>/
-│       ├── project.json
-│       ├── agents/
-│       ├── teams/
-│       ├── chats/
-│       └── src/
 │
 ├── tools/                  # Agent tool implementations
 │   ├── read-file/
@@ -163,10 +151,30 @@ bridge-swarm/
 │   ├── web-search/
 │   └── deploy-cloudflare/
 │
-└── public/                 # Browser SPA
-    ├── index.html
-    ├── styles.css
-    └── app.js
+├── public/                 # Browser SPA
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
+│
+└── data/                   # Mutable data (DATA_DIR, default: ./data)
+    ├── app-settings.json   # Runtime settings (API keys, model) — gitignored
+    ├── projects.json       # Registered projects list
+    ├── agents/
+    │   └── swarmito/       # Built-in orchestrator agent
+    │       ├── agent.json
+    │       └── system.md
+    ├── teams/              # Global teams
+    ├── chats/              # Global chat histories
+    │   └── <chatId>/
+    │       ├── history.json
+    │       └── raw.json
+    └── projects/           # Project workspaces
+        └── <projectId>/
+            ├── project.json
+            ├── agents/
+            ├── teams/
+            ├── chats/
+            └── src/
 ```
 
 ---
