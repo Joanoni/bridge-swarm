@@ -1040,11 +1040,10 @@ async function startup() {
         var versionData = await fetch('/api/version').then(function(r){ return r.json(); });
         if (versionData.ok && versionData.version) {
             var v = versionData.version;
-            var d = new Date(v.date);
+            var d = new Date(v.timestamp);
             var dateStr = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
             var timeStr = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-            $('app-version').textContent = v.hash + ' · ' + dateStr + ' ' + timeStr;
-            $('app-version').title = v.message;
+            $('app-version').textContent = 'v' + v.version + ' · ' + dateStr + ' ' + timeStr;
         }
     } catch(e) { /* version display is non-critical */ }
 }
