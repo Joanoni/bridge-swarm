@@ -273,6 +273,16 @@ body {
     font-size: 11px;
     color: var(--text-muted);
     font-family: var(--font-mono);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#app-version {
+    font-size: 10px;
+    color: var(--text-muted);
+    opacity: 0.6;
+    line-height: 1.4;
 }
 
 /* ── Center chat area ───────────────────────────────────────────────────────── */

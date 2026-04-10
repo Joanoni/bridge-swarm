@@ -108,6 +108,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ── REST API ──────────────────────────────────────────────────────────────────
 
+// Version info
+app.get('/api/version', (req, res) => {
+    const { execSync } = require('child_process');
+    let hash = 'unknown', date = 'unknown', message = 'unknown';
+    try {
+        hash    = execSync('git rev-parse --short HEAD', { cwd: appRoot }).toString().trim();
+        date    = execSync('git log -1 --format=%ci',   { cwd: appRoot }).toString().trim();
+        message = execSync('git log -1 --format=%s',    { cwd: appRoot }).toString().trim();
+    } catch (_) {}
+    res.json({ ok: true, version: { hash, date, message } });
+});
+
 // Chat commands (main API)
 app.post('/api/chat', async (req, res) => {
     const { command, payload } = req.body;

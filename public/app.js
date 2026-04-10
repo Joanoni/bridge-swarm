@@ -1036,6 +1036,17 @@ async function startup() {
         var settingsData = await apiChat('GET_SETTINGS', {});
         allProjects = (settingsData && settingsData.projects) || [];
     } catch(e) { /* will retry via WS */ }
+    try {
+        var versionData = await fetch('/api/version').then(function(r){ return r.json(); });
+        if (versionData.ok && versionData.version) {
+            var v = versionData.version;
+            var d = new Date(v.date);
+            var dateStr = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
+            var timeStr = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+            $('app-version').textContent = v.hash + ' · ' + dateStr + ' ' + timeStr;
+            $('app-version').title = v.message;
+        }
+    } catch(e) { /* version display is non-critical */ }
 }
 
 startup();
